@@ -121,7 +121,7 @@
             <div class="card card-outline card-secondary h-100">
                 <div class="card-header">
                     <h3 class="card-title mb-0">
-                        <i class="bi bi-clock-history me-1"></i> Últimos cambios en lotes
+                        <i class="bi bi-clock-history me-1"></i> Últimos cambios registrados
                     </h3>
                 </div>
 
@@ -140,6 +140,8 @@
                                     @php
                                         $accion = match ($auditoria->accion) {
                                             'lote_actualizado' => 'Lote actualizado',
+                                            'despacho_registrado' => 'Despacho registrado',
+                                            'despacho_anulado' => 'Despacho anulado',
                                             default => ucfirst(str_replace('_', ' ', $auditoria->accion)),
                                         };
                                         $numeroAnterior = $auditoria->datos_anteriores['numero_lote'] ?? null;

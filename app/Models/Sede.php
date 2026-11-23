@@ -8,14 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class Sede extends Model
 {
     protected $table = 'sedes';
-    
+
     protected $fillable = [
-        'nombre', 
-        'tipo', 
-        'empleado_id', 
-        'direccion', 
-        'telefono', 
-        'activo'
+        'nombre',
+        'tipo',
+        'empleado_id',
+        'direccion',
+        'telefono',
+        'activo',
     ];
 
     protected $casts = [
@@ -28,16 +28,16 @@ class Sede extends Model
         return $this->belongsTo(Empleado::class, 'empleado_id');
     }
 
-    // Relación: Una sede realiza muchos pedidos (para futuras fases)
-    public function pedidos()
+    // Relación: Una sede recibe muchos despachos de inventario.
+    public function despachos()
     {
-        return $this->hasMany(Pedido::class, 'sede_id');
+        return $this->hasMany(Despacho::class, 'sede_id');
     }
 
     protected function codigo(): Attribute
     {
         return Attribute::make(
-            get: fn () => 'SED-' . str_pad($this->id, 4, '0', STR_PAD_LEFT),
+            get: fn () => 'SED-'.str_pad($this->id, 4, '0', STR_PAD_LEFT),
         );
     }
 }

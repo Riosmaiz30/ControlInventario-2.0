@@ -7,15 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 class Lote extends Model
 {
     protected $table = 'lotes';
-    
+
     protected $fillable = [
-        'producto_id', 
-        'proveedor_id', 
-        'numero_lote', 
-        'stock_inicial', 
-        'stock_actual', 
-        'fecha_registro', 
-        'fecha_vencimiento'
+        'producto_id',
+        'proveedor_id',
+        'numero_lote',
+        'stock_inicial',
+        'stock_actual',
+        'fecha_registro',
+        'fecha_vencimiento',
     ];
 
     protected $casts = [
@@ -35,5 +35,11 @@ class Lote extends Model
     public function proveedor()
     {
         return $this->belongsTo(Proveedor::class, 'proveedor_id');
+    }
+
+    // Relación: Un lote puede abastecer varios detalles de despacho
+    public function despachoDetalles()
+    {
+        return $this->hasMany(DespachoDetalle::class, 'lote_id');
     }
 }

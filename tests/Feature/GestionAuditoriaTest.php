@@ -98,7 +98,7 @@ class GestionAuditoriaTest extends TestCase
         ]);
 
         Livewire::test(GestionAuditoria::class)
-            ->assertSee('Últimos cambios en lotes')
+            ->assertSee('Últimos cambios registrados')
             ->assertSee('Lote actualizado')
             ->assertSee('Administrador')
             ->assertSee('Lote Dis-abc-2026-11-18-001 actualizado');

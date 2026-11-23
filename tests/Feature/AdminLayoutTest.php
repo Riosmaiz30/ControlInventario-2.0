@@ -120,7 +120,7 @@ class AdminLayoutTest extends TestCase
             'categorias.index' => 'Gestión de Categorías',
             'empleados.index' => 'Gestión de Empleados',
             'sedes.index' => 'Gestión de Sedes',
-            'despachos.index' => 'Módulo en preparación',
+            'despachos.index' => 'Despachos a Sedes',
         ];
 
         foreach ($modulos as $ruta => $contenido) {

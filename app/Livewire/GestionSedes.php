@@ -14,14 +14,21 @@ class GestionSedes extends Component
     public string $search = '';
 
     public $sede_id = null;
+
     public $nombre = '';
+
     public $tipo = 'consumidor';
+
     public $empleado_id = '';
+
     public $direccion = '';
+
     public $telefono = '';
+
     public bool $activo = true;
 
     public bool $isEditing = false;
+
     public bool $mostrarModal = false;
 
     protected function rules(): array
@@ -129,6 +136,13 @@ class GestionSedes extends Component
     public function eliminar($id): void
     {
         $sede = Sede::findOrFail($id);
+
+        if ($sede->despachos()->exists()) {
+            session()->flash('error', 'No se puede eliminar la sede porque tiene despachos asociados.');
+
+            return;
+        }
+
         $sede->delete();
 
         if ((int) $this->sede_id === (int) $id) {
@@ -174,7 +188,7 @@ class GestionSedes extends Component
         return Sede::query()
             ->with('responsable')
             ->when($this->search !== '', function ($query) {
-                $termino = '%' . mb_strtolower(trim($this->search)) . '%';
+                $termino = '%'.mb_strtolower(trim($this->search)).'%';
 
                 $query->where(function ($query) use ($termino) {
                     $query->whereRaw('LOWER(nombre) LIKE ?', [$termino])

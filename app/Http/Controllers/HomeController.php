@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Categoria;
+use App\Models\Despacho;
 use App\Models\Empleado;
 use App\Models\Lote;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use App\Models\Sede;
+use Illuminate\Contracts\Support\Renderable;
 
 class HomeController extends Controller
 {
@@ -24,7 +26,7 @@ class HomeController extends Controller
     /**
      * Show the application dashboard.
      *
-     * @return \Illuminate\Contracts\Support\Renderable
+     * @return Renderable
      */
     public function index()
     {
@@ -36,6 +38,7 @@ class HomeController extends Controller
             'totalEmpleados' => Empleado::count(),
             'totalSedes' => Sede::count(),
             'totalPuntosConsumo' => Sede::where('tipo', 'consumidor')->count(),
+            'totalDespachos' => Despacho::query()->registrados()->count(),
         ]);
     }
 }

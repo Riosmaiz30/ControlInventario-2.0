@@ -97,12 +97,12 @@
 
         <div class="col-lg-4 col-6">
             <x-adminlte-small-box
-                title="—"
+                title="{{ $totalDespachos }}"
                 text="Despachos"
                 icon="fas fa-paper-plane"
                 theme="dark"
                 url="{{ route('despachos.index') }}"
-                url-text="Ver módulo"
+                url-text="Ver despachos"
                 footer-icon="fas fa-arrow-circle-right"
             />
         </div>

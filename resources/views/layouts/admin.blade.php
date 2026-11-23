@@ -97,15 +97,18 @@
             }
 
             const entity = button.dataset.confirmEntity || 'este registro';
+            const titulo = button.dataset.confirmTitle || `¿Eliminar ${entity}?`;
+            const texto = button.dataset.confirmText || 'Esta acción no se puede deshacer.';
+            const textoConfirmar = button.dataset.confirmButton || 'Sí, eliminar';
 
             const result = await Swal.fire({
-                title: `¿Eliminar ${entity}?`,
-                text: 'Esta acción no se puede deshacer.',
+                title: titulo,
+                text: texto,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Sí, eliminar',
+                confirmButtonText: textoConfirmar,
                 cancelButtonText: 'Cancelar',
                 reverseButtons: true,
                 focusCancel: true,

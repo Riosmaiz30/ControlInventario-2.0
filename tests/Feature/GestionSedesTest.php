@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Livewire\GestionSedes;
+use App\Models\Despacho;
 use App\Models\Empleado;
 use App\Models\Sede;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -133,6 +135,25 @@ class GestionSedesTest extends TestCase
             ->assertSee('Sede eliminada correctamente.');
 
         $this->assertDatabaseMissing('sedes', ['id' => $sede->id]);
+    }
+
+    public function test_no_elimina_una_sede_con_despachos_asociados(): void
+    {
+        $sede = $this->sede();
+
+        Despacho::create([
+            'numero' => 'DES-2026-11-23-001',
+            'sede_id' => $sede->id,
+            'user_id' => User::factory()->create()->id,
+            'fecha_despacho' => '2026-11-23',
+            'estado' => Despacho::ESTADO_REGISTRADO,
+        ]);
+
+        Livewire::test(GestionSedes::class)
+            ->call('eliminar', $sede->id)
+            ->assertSee('No se puede eliminar la sede porque tiene despachos asociados.');
+
+        $this->assertDatabaseHas('sedes', ['id' => $sede->id]);
     }
 
     public function test_muestra_el_nombre_del_empleado_responsable_en_la_tabla(): void
