@@ -143,6 +143,7 @@ class GestionDespachosTest extends TestCase
 
         $this->registrarDespacho($loteElegido, $sede, 4)
             ->assertHasNoErrors()
+            ->assertDispatched('descargar-nota-entrega', fn (string $event, array $params) => str_contains($params['url'], route('despachos.nota-entrega', ['despacho' => 1])))
             ->assertSee('Despacho registrado correctamente.');
 
         $this->assertDatabaseHas('despachos', [
@@ -490,9 +491,10 @@ class GestionDespachosTest extends TestCase
 
         Livewire::test(GestionDespachos::class)
             ->call('crear')
-            ->assertSee('Harina de maíz')
-            ->assertSee('LOTE-HAR-001')
-            ->assertDontSee('Arroz blanco');
+            ->assertViewHas('lotesDisponibles', function ($lotes) {
+                return $lotes->pluck('numero_lote')->contains('LOTE-HAR-001')
+                    && ! $lotes->pluck('numero_lote')->contains('LOTE-ARR-001');
+            });
     }
 
     public function test_filtra_los_lotes_por_numero_producto_o_sku(): void
@@ -500,26 +502,32 @@ class GestionDespachosTest extends TestCase
         $harina = $this->producto('Harina de maíz', 'HAR-001');
         $arroz = $this->producto('Arroz blanco', 'ARR-002');
         $proveedor = $this->proveedor();
-        $loteHarina = $this->lote($harina, $proveedor, ['numero_lote' => 'LOTE-HAR-001', 'stock_actual' => 10]);
-        $loteArroz = $this->lote($arroz, $proveedor, ['numero_lote' => 'LOTE-ARR-001', 'stock_actual' => 20]);
+        $this->lote($harina, $proveedor, ['numero_lote' => 'LOTE-HAR-001', 'stock_actual' => 10]);
+        $this->lote($arroz, $proveedor, ['numero_lote' => 'LOTE-ARR-001', 'stock_actual' => 20]);
 
         Livewire::test(GestionDespachos::class)
             ->call('crear')
             ->set('loteBusqueda', 'LOTE-ARR')
-            ->assertSee('LOTE-ARR-001')
-            ->assertDontSee('LOTE-HAR-001');
+            ->assertViewHas('lotesDisponibles', function ($lotes) {
+                return $lotes->pluck('numero_lote')->contains('LOTE-ARR-001')
+                    && ! $lotes->pluck('numero_lote')->contains('LOTE-HAR-001');
+            });
 
         Livewire::test(GestionDespachos::class)
             ->call('crear')
             ->set('loteBusqueda', 'harina')
-            ->assertSee('LOTE-HAR-001')
-            ->assertDontSee('LOTE-ARR-001');
+            ->assertViewHas('lotesDisponibles', function ($lotes) {
+                return $lotes->pluck('numero_lote')->contains('LOTE-HAR-001')
+                    && ! $lotes->pluck('numero_lote')->contains('LOTE-ARR-001');
+            });
 
         Livewire::test(GestionDespachos::class)
             ->call('crear')
             ->set('loteBusqueda', 'ARR-002')
-            ->assertSee('LOTE-ARR-001')
-            ->assertDontSee('LOTE-HAR-001');
+            ->assertViewHas('lotesDisponibles', function ($lotes) {
+                return $lotes->pluck('numero_lote')->contains('LOTE-ARR-001')
+                    && ! $lotes->pluck('numero_lote')->contains('LOTE-HAR-001');
+            });
     }
 
     public function test_agrega_un_lote_desde_el_buscador(): void
@@ -531,13 +539,12 @@ class GestionDespachosTest extends TestCase
         Livewire::test(GestionDespachos::class)
             ->call('crear')
             ->set('loteBusqueda', 'LOTE-001')
-            ->assertSee('Harina de maíz')
-            ->assertSee('LOTE-001')
+            ->assertViewHas('lotesDisponibles', fn ($lotes) => $lotes->pluck('numero_lote')->contains('LOTE-001'))
             ->call('agregarLote', $lote->id)
             ->assertSet('loteBusqueda', '')
             ->assertSet('items.0.lote_id', $lote->id)
             ->assertViewHas('lotesDisponibles', fn ($lotes) => $lotes->isEmpty())
-            ->assertSee('Lotes en el despacho');
+            ->assertSee('Productos a entregar');
     }
 
     public function test_agrega_el_primer_resultado_con_enter(): void

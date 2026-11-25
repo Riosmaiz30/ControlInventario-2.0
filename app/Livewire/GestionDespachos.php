@@ -224,7 +224,9 @@ class GestionDespachos extends Component
             ]);
         }
 
-        DB::transaction(function () use ($fecha, $sede, $despachadoPor, $recibidoPor) {
+        $despacho = null;
+
+        DB::transaction(function () use (&$despacho, $fecha, $sede, $despachadoPor, $recibidoPor) {
             $despacho = Despacho::create([
                 'numero' => $this->generarNumero($fecha),
                 'sede_id' => $sede->id,
@@ -261,6 +263,8 @@ class GestionDespachos extends Component
         });
 
         $this->cerrarModal();
+
+        $this->dispatch('descargar-nota-entrega', url: route('despachos.nota-entrega', $despacho));
 
         session()->flash('success', 'Despacho registrado correctamente.');
     }
