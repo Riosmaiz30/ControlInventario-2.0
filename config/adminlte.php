@@ -1,5 +1,14 @@
 <?php
 
+use App\AdminLte\Filters\SedeBadgeFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter;
+use JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter;
+
 /*
 |--------------------------------------------------------------------------
 | Laravel AdminLTE Configuration
@@ -771,6 +780,22 @@ return [
             'topnav_right' => true,
         ],
         [
+            'type' => 'notification',
+            'id' => 'notificaciones-despachos',
+            'can' => 'ver_notificaciones',
+            'icon' => 'fas fa-bell',
+            'route' => 'despachos.index',
+            'label' => '',
+            'label_color' => 'danger',
+            'dropdown_mode' => true,
+            'dropdown_flabel' => 'Ver despachos programados',
+            'update_cfg' => [
+                'route' => 'notificaciones.campana',
+                'period' => 30,
+            ],
+            'topnav_right' => true,
+        ],
+        [
             'type' => 'darkmode-widget',
             'topnav_right' => true,
         ],
@@ -790,59 +815,116 @@ return [
             'icon' => 'fas fa-gauge-high',
             'active' => ['home'],
         ],
-        ['header' => 'Catálogos'],
         [
-            'text' => 'Proveedores',
-            'route' => 'proveedores.index',
-            'icon' => 'fas fa-truck',
-            'active' => ['proveedores', 'proveedores/*'],
+            'text' => 'Catálogos',
+            'can' => 'gestionar_catalogos',
+            'icon' => 'fas fa-list-ul',
+            'active' => [
+                'proveedores', 'proveedores/*',
+                'categorias', 'categorias/*',
+                'marcas', 'marcas/*',
+            ],
+            'submenu' => [
+                [
+                    'text' => 'Proveedores',
+                    'can' => 'gestionar_catalogos',
+                    'route' => 'proveedores.index',
+                    'icon' => 'fas fa-truck',
+                    'active' => ['proveedores', 'proveedores/*'],
+                ],
+                [
+                    'text' => 'Categorías',
+                    'can' => 'gestionar_catalogos',
+                    'route' => 'categorias.index',
+                    'icon' => 'fas fa-tags',
+                    'active' => ['categorias', 'categorias/*'],
+                ],
+                [
+                    'text' => 'Marcas',
+                    'can' => 'gestionar_catalogos',
+                    'route' => 'marcas.index',
+                    'icon' => 'fas fa-trademark',
+                    'active' => ['marcas', 'marcas/*'],
+                ],
+            ],
         ],
         [
-            'text' => 'Categorías',
-            'route' => 'categorias.index',
-            'icon' => 'fas fa-tags',
-            'active' => ['categorias', 'categorias/*'],
-        ],
-        ['header' => 'Inventario Central'],
-        [
-            'text' => 'Productos',
-            'route' => 'productos.index',
+            'text' => 'Inventario Central',
+            'can' => ['ver_productos', 'ver_lotes'],
             'icon' => 'fas fa-boxes-stacked',
-            'active' => ['productos', 'productos/*'],
+            'active' => ['productos', 'productos/*', 'lotes', 'lotes/*'],
+            'submenu' => [
+                [
+                    'text' => 'Productos',
+                    'can' => 'ver_productos',
+                    'route' => 'productos.index',
+                    'icon' => 'fas fa-boxes-stacked',
+                    'active' => ['productos', 'productos/*'],
+                ],
+                [
+                    'text' => 'Lotes (Entradas)',
+                    'can' => 'ver_lotes',
+                    'route' => 'lotes.index',
+                    'icon' => 'fas fa-arrow-right-to-bracket',
+                    'active' => ['lotes', 'lotes/*'],
+                ],
+            ],
         ],
         [
-            'text' => 'Lotes (Entradas)',
-            'route' => 'lotes.index',
-            'icon' => 'fas fa-arrow-right-to-bracket',
-            'active' => ['lotes', 'lotes/*'],
+            'text' => 'Organización',
+            'can' => 'gestionar_organizacion',
+            'icon' => 'fas fa-users-gear',
+            'active' => [
+                'empleados', 'empleados/*',
+                'cargos', 'cargos/*',
+                'sedes', 'sedes/*',
+                'usuarios', 'usuarios/*',
+            ],
+            'submenu' => [
+                [
+                    'text' => 'Empleados',
+                    'can' => 'gestionar_organizacion',
+                    'route' => 'empleados.index',
+                    'icon' => 'fas fa-users',
+                    'active' => ['empleados', 'empleados/*'],
+                ],
+                [
+                    'text' => 'Cargos',
+                    'can' => 'gestionar_organizacion',
+                    'route' => 'cargos.index',
+                    'icon' => 'fas fa-briefcase',
+                    'active' => ['cargos', 'cargos/*'],
+                ],
+                [
+                    'text' => 'Sedes',
+                    'can' => 'gestionar_organizacion',
+                    'id' => 'menu-sedes',
+                    'route' => 'sedes.index',
+                    'icon' => 'fas fa-location-dot',
+                    'active' => ['sedes', 'sedes/*'],
+                    // El badge se calcula desde la base de datos en cada render.
+                    'dynamic_badge' => 'sedes',
+                    'label_color' => 'info',
+                ],
+                [
+                    'text' => 'Usuarios',
+                    'can' => 'gestionar_usuarios',
+                    'route' => 'usuarios.index',
+                    'icon' => 'fas fa-user-gear',
+                    'active' => ['usuarios', 'usuarios/*'],
+                ],
+            ],
         ],
-        ['header' => 'Organización'],
-        [
-            'text' => 'Empleados',
-            'route' => 'empleados.index',
-            'icon' => 'fas fa-users',
-            'active' => ['empleados', 'empleados/*'],
-        ],
-        [
-            'text' => 'Sedes',
-            'id' => 'menu-sedes',
-            'route' => 'sedes.index',
-            'icon' => 'fas fa-location-dot',
-            'active' => ['sedes', 'sedes/*'],
-            // El badge se calcula desde la base de datos en cada render.
-            'dynamic_badge' => 'sedes',
-            'label_color' => 'info',
-        ],
-        ['header' => 'Operaciones'],
         [
             'text' => 'Despachos a Sedes',
+            'can' => 'ver_despachos',
             'route' => 'despachos.index',
             'icon' => 'fas fa-paper-plane',
             'active' => ['despachos', 'despachos/*'],
         ],
-        ['header' => 'Sistema'],
         [
             'text' => 'Auditoría del Sistema',
+            'can' => 'ver_auditoria',
             'route' => 'auditoria.index',
             'icon' => 'fas fa-shield-halved',
             'active' => ['auditoria', 'auditoria/*'],
@@ -862,14 +944,14 @@ return [
     */
 
     'filters' => [
-        JeroenNoten\LaravelAdminLte\Menu\Filters\GateFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\HrefFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\SearchFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\ActiveFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\ClassesFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\LangFilter::class,
-        JeroenNoten\LaravelAdminLte\Menu\Filters\DataFilter::class,
-        App\AdminLte\Filters\SedeBadgeFilter::class,
+        GateFilter::class,
+        HrefFilter::class,
+        SearchFilter::class,
+        ActiveFilter::class,
+        ClassesFilter::class,
+        LangFilter::class,
+        DataFilter::class,
+        SedeBadgeFilter::class,
     ],
 
     /*

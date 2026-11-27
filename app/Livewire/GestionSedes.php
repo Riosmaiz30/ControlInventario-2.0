@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Empleado;
 use App\Models\Sede;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -78,6 +79,8 @@ class GestionSedes extends Component
 
     public function crear(): void
     {
+        Gate::authorize('gestionar_organizacion');
+
         $this->resetValidation();
         $this->resetForm();
         $this->isEditing = false;
@@ -86,6 +89,8 @@ class GestionSedes extends Component
 
     public function guardar(): void
     {
+        Gate::authorize('gestionar_organizacion');
+
         $datos = $this->validate();
         $datos['empleado_id'] = $datos['empleado_id'] ?: null;
 
@@ -100,6 +105,8 @@ class GestionSedes extends Component
 
     public function editar($id): void
     {
+        Gate::authorize('gestionar_organizacion');
+
         $sede = Sede::findOrFail($id);
 
         $this->resetValidation();
@@ -116,6 +123,8 @@ class GestionSedes extends Component
 
     public function actualizar(): void
     {
+        Gate::authorize('gestionar_organizacion');
+
         if (! $this->sede_id) {
             return;
         }
@@ -135,6 +144,8 @@ class GestionSedes extends Component
 
     public function eliminar($id): void
     {
+        Gate::authorize('gestionar_organizacion');
+
         $sede = Sede::findOrFail($id);
 
         if ($sede->despachos()->exists()) {

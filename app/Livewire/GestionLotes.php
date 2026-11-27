@@ -8,6 +8,7 @@ use App\Models\Lote;
 use App\Models\Producto;
 use App\Models\Proveedor;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -21,16 +22,24 @@ class GestionLotes extends Component
 
     /** Propiedades del formulario de entrada. */
     public $lote_id = null;
+
     public $producto_id = '';
+
     public $proveedor_id = '';
+
     public $numero_lote = '';
+
     public $stock_inicial = '';
+
     public $fecha_registro = '';
+
     public $fecha_vencimiento = '';
 
     /** Datos originales del lote en edición. */
     public $numero_lote_original = '';
+
     public $proveedor_id_original = '';
+
     public $fecha_registro_original = '';
 
     /** Indica si el formulario está editando un lote existente. */
@@ -124,6 +133,8 @@ class GestionLotes extends Component
      */
     public function crear(): void
     {
+        Gate::authorize('registrar_lotes');
+
         $this->resetValidation();
         $this->resetForm();
         $this->isEditing = false;
@@ -135,6 +146,8 @@ class GestionLotes extends Component
      */
     public function solicitarEdicion(int $id, string $clave): void
     {
+        Gate::authorize('modificar_lotes');
+
         if (! Configuracion::tieneClaveAdministrador()) {
             session()->flash('warning', 'No hay una clave de administrador configurada. Configúrala en Auditoría del Sistema.');
 
@@ -179,6 +192,8 @@ class GestionLotes extends Component
      */
     public function guardar(): void
     {
+        Gate::authorize('registrar_lotes');
+
         // Se recalcula para tomar el siguiente consecutivo disponible.
         $this->numero_lote = $this->generarNumeroLote();
 
@@ -199,6 +214,8 @@ class GestionLotes extends Component
      */
     public function actualizar(): void
     {
+        Gate::authorize('modificar_lotes');
+
         $lote = Lote::findOrFail($this->lote_id);
 
         $datos = $this->validate();
@@ -266,10 +283,10 @@ class GestionLotes extends Component
             return '';
         }
 
-        $base = $this->prefijoProveedor($proveedor->nombre) . '-' . $fecha . '-';
+        $base = $this->prefijoProveedor($proveedor->nombre).'-'.$fecha.'-';
 
         $consulta = Lote::query()
-            ->where('numero_lote', 'like', $base . '%');
+            ->where('numero_lote', 'like', $base.'%');
 
         if ($excluirId) {
             $consulta->where('id', '!=', $excluirId);
@@ -281,7 +298,7 @@ class GestionLotes extends Component
             ? ((int) substr($ultimo, strlen($base))) + 1
             : 1;
 
-        return $base . str_pad((string) $consecutivo, 3, '0', STR_PAD_LEFT);
+        return $base.str_pad((string) $consecutivo, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -351,7 +368,7 @@ class GestionLotes extends Component
         return Lote::query()
             ->with(['producto', 'proveedor'])
             ->when($this->search !== '', function ($query) {
-                $termino = '%' . mb_strtolower(trim($this->search)) . '%';
+                $termino = '%'.mb_strtolower(trim($this->search)).'%';
 
                 $query->where(function ($query) use ($termino) {
                     $query->whereRaw('LOWER(numero_lote) LIKE ?', [$termino])

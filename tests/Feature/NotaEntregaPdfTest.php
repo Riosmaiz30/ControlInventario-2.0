@@ -16,7 +16,7 @@ class NotaEntregaPdfTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function despacho(string $estado = Despacho::ESTADO_REGISTRADO): Despacho
+    private function despacho(string $estado = Despacho::ESTADO_REGISTRADO, int $cantidadDetalles = 1): Despacho
     {
         $usuario = User::factory()->create();
         $sede = Sede::create([
@@ -52,14 +52,16 @@ class NotaEntregaPdfTest extends TestCase
             'consumo_interno' => false,
         ]);
 
-        DespachoDetalle::create([
-            'despacho_id' => $despacho->id,
-            'producto_id' => $producto->id,
-            'lote_id' => null,
-            'producto_nombre' => 'Harina de maíz',
-            'numero_lote' => 'LOTE-A',
-            'cantidad' => 12.5,
-        ]);
+        for ($i = 1; $i <= $cantidadDetalles; $i++) {
+            DespachoDetalle::create([
+                'despacho_id' => $despacho->id,
+                'producto_id' => $producto->id,
+                'lote_id' => null,
+                'producto_nombre' => 'Harina de maíz',
+                'numero_lote' => sprintf('LOTE-%03d', $i),
+                'cantidad' => $i === 1 ? 12.5 : 1,
+            ]);
+        }
 
         return $despacho;
     }
@@ -92,7 +94,9 @@ class NotaEntregaPdfTest extends TestCase
                 && $pdf->contains('Harina de maíz')
                 && $pdf->contains('12,50')
                 && $pdf->contains('kg')
-                && $pdf->contains('Entregar en horario matutino.');
+                && $pdf->contains('Descripción / Novedades')
+                && $pdf->contains('Entregar en horario matutino.')
+                && $pdf->contains('Por la Protección Integral De Los Niños, Niñas Y Adolescentes.');
         });
     }
 
@@ -107,5 +111,49 @@ class NotaEntregaPdfTest extends TestCase
             ->assertOk();
 
         Pdf::assertRespondedWithPdf(fn ($pdf) => $pdf->contains('ANULADO'));
+    }
+
+    public function test_15_renglones_generan_una_sola_pagina(): void
+    {
+        Pdf::fake();
+
+        $despacho = $this->despacho(Despacho::ESTADO_REGISTRADO, 15);
+
+        $this->actingAs(User::first())
+            ->get(route('despachos.nota-entrega', $despacho))
+            ->assertOk();
+
+        Pdf::assertRespondedWithPdf(function ($pdf) {
+            $html = $pdf->getHtml();
+
+            return substr_count($html, '<table class="items">') === 1
+                && substr_count($html, 'class="pagina-nota') === 1
+                && substr_count($html, '<table class="firmas"') === 1;
+        });
+    }
+
+    public function test_16_renglones_generan_dos_paginas_y_firmas_solo_en_la_ultima(): void
+    {
+        Pdf::fake();
+
+        $despacho = $this->despacho(Despacho::ESTADO_REGISTRADO, 16);
+
+        $this->actingAs(User::first())
+            ->get(route('despachos.nota-entrega', $despacho))
+            ->assertOk();
+
+        Pdf::assertRespondedWithPdf(function ($pdf) {
+            $html = $pdf->getHtml();
+            $primeraTabla = strpos($html, '<table class="items">');
+            $segundaTabla = strpos($html, '<table class="items">', $primeraTabla + 1);
+            $firmas = strpos($html, '<table class="firmas"');
+
+            return substr_count($html, '<table class="items">') === 2
+                && substr_count($html, 'class="pagina-nota pagina-nota--salto"') === 1
+                && substr_count($html, '<table class="firmas"') === 1
+                && str_contains($html, 'class="pie-fijo"')
+                && $segundaTabla !== false
+                && $firmas > $segundaTabla;
+        });
     }
 }

@@ -23,9 +23,11 @@
                 </div>
 
                 {{-- Nueva entrada --}}
-                <button type="button" class="btn btn-primary btn-sm" wire:click="crear">
-                    <i class="bi bi-plus-lg me-1"></i> Nueva Entrada / Lote
-                </button>
+                @can('registrar_lotes')
+                    <button type="button" class="btn btn-primary btn-sm" wire:click="crear">
+                        <i class="bi bi-plus-lg me-1"></i> Nueva Entrada / Lote
+                    </button>
+                @endcan
             </div>
         </div>
 
@@ -98,16 +100,20 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <button
-                                        type="button"
-                                        class="btn btn-warning btn-sm"
-                                        data-confirm-edit
-                                        data-edit-id="{{ $lote->id }}"
-                                        data-clave-configurada="{{ $claveConfigurada ? '1' : '0' }}"
-                                        title="Modificar lote"
-                                    >
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
+                                    @can('modificar_lotes')
+                                        <button
+                                            type="button"
+                                            class="btn btn-warning btn-sm"
+                                            data-confirm-edit
+                                            data-edit-id="{{ $lote->id }}"
+                                            data-clave-configurada="{{ $claveConfigurada ? '1' : '0' }}"
+                                            title="Modificar lote"
+                                        >
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty

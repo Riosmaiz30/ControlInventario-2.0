@@ -29,8 +29,8 @@ class AdminLayoutTest extends TestCase
             ->assertSee('Catálogos')
             ->assertSee('Inventario Central')
             ->assertSee('Organización')
-            ->assertSee('Operaciones')
             ->assertSee('Despachos a Sedes')
+            ->assertSee('Auditoría del Sistema')
             ->assertSee('nav-badge badge text-bg-info', false)
             ->assertSee(asset('vendor/fontawesome/css/all.min.css'), false)
             ->assertSee('fas fa-gauge-high', false)
@@ -39,7 +39,17 @@ class AdminLayoutTest extends TestCase
             ->assertSee('fas fa-paper-plane', false)
             ->assertSee('id="menu-sedes"', false)
             ->assertSee("window.addEventListener('sedes-actualizadas'", false)
-            ->assertSee('#menu-sedes .nav-badge', false);
+            ->assertSee('#menu-sedes .nav-badge', false)
+            ->assertSee('nav-treeview', false)
+            ->assertSee('fas fa-list-ul', false)
+            ->assertSee('fas fa-users-gear', false)
+            ->assertSee('fas fa-shield-halved', false);
+
+        $this->assertGreaterThanOrEqual(
+            3,
+            substr_count($response->getContent(), 'nav-treeview'),
+            'Los tres grupos del menú deben desplegarse como submenús.',
+        );
     }
 
     public function test_el_badge_de_sedes_muestra_el_total_real_de_la_base_de_datos(): void

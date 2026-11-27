@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Despacho extends Model
 {
@@ -59,6 +60,12 @@ class Despacho extends Model
     public function detalles()
     {
         return $this->hasMany(DespachoDetalle::class, 'despacho_id');
+    }
+
+    // Relación: Un despacho puede originar programaciones periódicas.
+    public function programaciones(): HasMany
+    {
+        return $this->hasMany(ProgramacionDespacho::class, 'despacho_origen_id');
     }
 
     // Solo despachos vigentes (no anulados).

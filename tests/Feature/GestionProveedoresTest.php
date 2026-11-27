@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\Lote;
 use App\Models\Producto;
 use App\Models\Proveedor;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -14,6 +15,13 @@ use Tests\TestCase;
 class GestionProveedoresTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
 
     private function proveedor(string $nombre = 'Distribuidora ABC', string $rif = 'J-12345678-9'): Proveedor
     {

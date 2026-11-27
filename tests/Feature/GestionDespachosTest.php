@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\GestionDespachos;
 use App\Models\Auditoria;
+use App\Models\Cargo;
 use App\Models\Categoria;
 use App\Models\Despacho;
 use App\Models\Empleado;
@@ -19,6 +20,13 @@ use Tests\TestCase;
 class GestionDespachosTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
 
     private function producto(string $nombre = 'Harina de maíz', string $sku = 'HAR-001'): Producto
     {
@@ -46,12 +54,17 @@ class GestionDespachosTest extends TestCase
 
     private function empleado(string $cargo, string $cedula, string $nombres = 'Juan', string $apellidos = 'Pérez', bool $activo = true): Empleado
     {
+        $cargoModel = Cargo::query()->firstOrCreate(
+            ['nombre' => $cargo],
+            ['activo' => true],
+        );
+
         return Empleado::create([
             'cedula' => $cedula,
             'nombres' => $nombres,
             'apellidos' => $apellidos,
             'telefono' => null,
-            'cargo' => $cargo,
+            'cargo_id' => $cargoModel->id,
             'activo' => $activo,
         ]);
     }
@@ -115,6 +128,14 @@ class GestionDespachosTest extends TestCase
                 ['lote_id' => $lote->id, 'cantidad' => $cantidad],
             ])
             ->call('guardar');
+    }
+
+    public function test_el_formulario_de_despacho_muestra_el_boton_de_guardar_en_el_pie_del_modal(): void
+    {
+        Livewire::test(GestionDespachos::class)
+            ->call('crear')
+            ->assertSee('Registrar Despacho')
+            ->assertSee('modal-footer', false);
     }
 
     public function test_registra_un_despacho_y_descuenta_el_stock_del_lote_elegido(): void

@@ -7,9 +7,12 @@ use App\Models\Despacho;
 use App\Models\DespachoDetalle;
 use App\Models\Empleado;
 use App\Models\Lote;
+use App\Models\ProgramacionDespacho;
+use App\Models\ProgramacionDespachoDetalle;
 use App\Models\Sede;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -40,6 +43,38 @@ class GestionDespachos extends Component
 
     /** Despacho seleccionado para ver su detalle. */
     public $detalleId = null;
+
+    /** Controla la visibilidad del formulario de programación. */
+    public bool $mostrarModalProgramacion = false;
+
+    /** Programación que se está editando, si corresponde. */
+    public $programacionId = null;
+
+    /** Despacho origen de la programación. */
+    public $programacionDespachoId = null;
+
+    /** Campos del formulario de programación. */
+    public $programacionSedeId = '';
+
+    public $programacionCadaDias = 7;
+
+    public $programacionFechaInicio = '';
+
+    public $programacionObservaciones = '';
+
+    public array $programacionDetalles = [];
+
+    /**
+     * Carga el borrador solicitado desde la campana de notificaciones.
+     */
+    public function mount(): void
+    {
+        $programacionId = (int) request()->query('programacion', 0);
+
+        if ($programacionId > 0) {
+            $this->crearDesdeProgramacion($programacionId);
+        }
+    }
 
     /**
      * Reglas de validación para el registro de despachos.
@@ -97,6 +132,61 @@ class GestionDespachos extends Component
     }
 
     /**
+     * Reglas de validación para programar envíos periódicos.
+     */
+    protected function rulesProgramacion(): array
+    {
+        return [
+            'programacionSedeId' => ['required', 'integer', 'exists:sedes,id'],
+            'programacionCadaDias' => ['required', 'integer', 'min:1', 'max:365'],
+            'programacionFechaInicio' => ['required', 'date'],
+            'programacionObservaciones' => ['nullable', 'string', 'max:1000'],
+            'programacionDetalles' => ['required', 'array', 'min:1'],
+            'programacionDetalles.*.producto_id' => ['nullable', 'integer', 'exists:productos,id'],
+            'programacionDetalles.*.producto_nombre' => ['required', 'string', 'max:255'],
+            'programacionDetalles.*.cantidad' => ['required', 'numeric', 'gt:0', 'max:99999999.99'],
+        ];
+    }
+
+    /**
+     * Mensajes de validación de la programación.
+     */
+    protected function messagesProgramacion(): array
+    {
+        return [
+            'programacionSedeId.required' => 'Debe seleccionar una sede de destino.',
+            'programacionCadaDias.required' => 'Debe indicar cada cuántos días se enviará.',
+            'programacionCadaDias.integer' => 'El periodo debe ser un número entero de días.',
+            'programacionCadaDias.min' => 'El periodo mínimo es de 1 día.',
+            'programacionCadaDias.max' => 'El periodo máximo es de 365 días.',
+            'programacionFechaInicio.required' => 'La fecha de inicio es obligatoria.',
+            'programacionFechaInicio.date' => 'La fecha de inicio no es válida.',
+            'programacionObservaciones.max' => 'Las observaciones no pueden superar los 1000 caracteres.',
+            'programacionDetalles.required' => 'La programación debe incluir al menos un producto.',
+            'programacionDetalles.min' => 'La programación debe incluir al menos un producto.',
+            'programacionDetalles.*.producto_nombre.required' => 'El nombre del producto es obligatorio.',
+            'programacionDetalles.*.cantidad.required' => 'La cantidad es obligatoria.',
+            'programacionDetalles.*.cantidad.numeric' => 'La cantidad debe ser un número.',
+            'programacionDetalles.*.cantidad.gt' => 'La cantidad debe ser mayor a 0.',
+            'programacionDetalles.*.cantidad.max' => 'La cantidad es demasiado grande.',
+        ];
+    }
+
+    /**
+     * Nombres legibles de los campos de la programación.
+     */
+    protected function validationAttributesProgramacion(): array
+    {
+        return [
+            'programacionSedeId' => 'sede',
+            'programacionCadaDias' => 'periodo en días',
+            'programacionFechaInicio' => 'fecha de inicio',
+            'programacionDetalles' => 'productos',
+            'programacionDetalles.*.cantidad' => 'cantidad',
+        ];
+    }
+
+    /**
      * Reinicia la paginación cuando cambia la búsqueda.
      */
     public function updatedSearch(): void
@@ -109,9 +199,301 @@ class GestionDespachos extends Component
      */
     public function crear(): void
     {
+        Gate::authorize('preparar_despachos');
+
         $this->resetValidation();
         $this->resetForm();
         $this->mostrarModal = true;
+        $this->dispatch('enfocar-buscador');
+    }
+
+    /**
+     * Abre el formulario para programar envíos desde un despacho existente.
+     */
+    public function programar($despachoId): void
+    {
+        Gate::authorize('programar_despachos');
+
+        $despacho = Despacho::query()->with('detalles')->find($despachoId);
+
+        if (! $despacho) {
+            session()->flash('error', 'El despacho solicitado no existe.');
+
+            return;
+        }
+
+        if ($despacho->estado === Despacho::ESTADO_ANULADO) {
+            session()->flash('warning', 'No se puede programar un despacho anulado.');
+
+            return;
+        }
+
+        $existente = ProgramacionDespacho::query()
+            ->where('despacho_origen_id', $despacho->id)
+            ->first();
+
+        if ($existente) {
+            $this->editarProgramacion($existente->id);
+            session()->flash('info', 'Este despacho ya tenía una programación; puedes editarla aquí.');
+
+            return;
+        }
+
+        $this->resetValidation();
+        $this->resetFormProgramacion();
+        $this->programacionDespachoId = $despacho->id;
+        $this->programacionSedeId = $despacho->sede_id;
+        $this->programacionObservaciones = $despacho->observaciones ?? '';
+        $this->programacionDetalles = $despacho->detalles->map(fn ($detalle) => [
+            'producto_id' => $detalle->producto_id,
+            'producto_nombre' => $detalle->producto_nombre,
+            'cantidad' => (float) $detalle->cantidad,
+        ])->values()->all();
+        $this->mostrarModalProgramacion = true;
+    }
+
+    /**
+     * Carga una programación existente en el formulario.
+     */
+    public function editarProgramacion($id): void
+    {
+        Gate::authorize('programar_despachos');
+
+        $programacion = ProgramacionDespacho::query()->with('detalles')->find($id);
+
+        if (! $programacion) {
+            session()->flash('error', 'La programación solicitada no existe.');
+
+            return;
+        }
+
+        $this->resetValidation();
+        $this->resetFormProgramacion();
+        $this->programacionId = $programacion->id;
+        $this->programacionDespachoId = $programacion->despacho_origen_id;
+        $this->programacionSedeId = $programacion->sede_id;
+        $this->programacionCadaDias = $programacion->cada_dias;
+        $this->programacionFechaInicio = $programacion->fecha_inicio?->format('Y-m-d') ?? '';
+        $this->programacionObservaciones = $programacion->observaciones ?? '';
+        $this->programacionDetalles = $programacion->detalles->map(fn ($detalle) => [
+            'producto_id' => $detalle->producto_id,
+            'producto_nombre' => $detalle->producto_nombre,
+            'cantidad' => (float) $detalle->cantidad,
+        ])->values()->all();
+        $this->mostrarModalProgramacion = true;
+    }
+
+    /**
+     * Valida y guarda la programación de envíos.
+     */
+    public function guardarProgramacion(): void
+    {
+        Gate::authorize('programar_despachos');
+
+        $this->validate($this->rulesProgramacion(), $this->messagesProgramacion(), $this->validationAttributesProgramacion());
+
+        $fechaInicio = Carbon::parse($this->programacionFechaInicio);
+        $datos = [
+            'despacho_origen_id' => $this->programacionDespachoId,
+            'sede_id' => $this->programacionSedeId,
+            'cada_dias' => (int) $this->programacionCadaDias,
+            'fecha_inicio' => $fechaInicio->toDateString(),
+            'observaciones' => filled($this->programacionObservaciones) ? $this->programacionObservaciones : null,
+            'proxima_fecha' => $fechaInicio->copy()->startOfDay(),
+        ];
+
+        $programacion = null;
+        $anteriores = null;
+        $accion = 'programacion_creada';
+
+        DB::transaction(function () use (&$programacion, &$anteriores, &$accion, $datos, $fechaInicio) {
+            if ($this->programacionId) {
+                $programacion = ProgramacionDespacho::query()->findOrFail($this->programacionId);
+                $anteriores = $this->datosAuditoriaProgramacion($programacion);
+                $accion = 'programacion_actualizada';
+
+                $mismoPeriodo = (int) $programacion->cada_dias === (int) $this->programacionCadaDias
+                    && $programacion->fecha_inicio?->toDateString() === $fechaInicio->toDateString();
+
+                if ($mismoPeriodo) {
+                    unset($datos['proxima_fecha']);
+                }
+
+                $programacion->update($datos);
+                $programacion->detalles()->delete();
+            } else {
+                $existe = ProgramacionDespacho::query()
+                    ->where('despacho_origen_id', $this->programacionDespachoId)
+                    ->exists();
+
+                if ($existe) {
+                    throw ValidationException::withMessages([
+                        'programacionDespachoId' => 'Este despacho ya tiene una programación activa.',
+                    ]);
+                }
+
+                $programacion = ProgramacionDespacho::create($datos + ['user_id' => auth()->id()]);
+            }
+
+            foreach ($this->programacionDetalles as $detalle) {
+                ProgramacionDespachoDetalle::create([
+                    'programacion_despacho_id' => $programacion->id,
+                    'producto_id' => $detalle['producto_id'] ?? null,
+                    'producto_nombre' => $detalle['producto_nombre'],
+                    'cantidad' => (float) $detalle['cantidad'],
+                ]);
+            }
+
+            $programacion->load(['detalles', 'sede']);
+
+            Auditoria::create([
+                'user_id' => auth()->id(),
+                'accion' => $accion,
+                'modelo' => 'programacion_despacho',
+                'modelo_id' => $programacion->id,
+                'descripcion' => "Programación de envío a {$programacion->sede?->nombre} guardada cada {$programacion->cada_dias} días",
+                'datos_anteriores' => $anteriores,
+                'datos_nuevos' => $this->datosAuditoriaProgramacion($programacion),
+            ]);
+        });
+
+        $this->cerrarModalProgramacion();
+
+        session()->flash('success', 'Envío programado correctamente.');
+    }
+
+    /**
+     * Pausa una programación existente.
+     */
+    public function pausarProgramacion($id): void
+    {
+        $this->cambiarEstadoProgramacion((int) $id, false, 'programacion_pausada', 'Programación pausada correctamente.');
+    }
+
+    /**
+     * Reactiva una programación pausada.
+     */
+    public function activarProgramacion($id): void
+    {
+        $this->cambiarEstadoProgramacion((int) $id, true, 'programacion_activada', 'Programación activada correctamente.');
+    }
+
+    /**
+     * Elimina una programación y sus productos.
+     */
+    public function eliminarProgramacion($id): void
+    {
+        Gate::authorize('programar_despachos');
+
+        $programacion = ProgramacionDespacho::query()->find($id);
+
+        if (! $programacion) {
+            session()->flash('error', 'La programación solicitada no existe.');
+
+            return;
+        }
+
+        $anteriores = $this->datosAuditoriaProgramacion($programacion->load('detalles'));
+
+        DB::transaction(function () use ($programacion, $anteriores) {
+            $programacion->delete();
+
+            Auditoria::create([
+                'user_id' => auth()->id(),
+                'accion' => 'programacion_eliminada',
+                'modelo' => 'programacion_despacho',
+                'modelo_id' => $programacion->id,
+                'descripcion' => 'Programación de envío eliminada',
+                'datos_anteriores' => $anteriores,
+                'datos_nuevos' => null,
+            ]);
+        });
+
+        session()->flash('success', 'Programación eliminada correctamente.');
+    }
+
+    /**
+     * Cierra el formulario de programación.
+     */
+    public function cerrarModalProgramacion(): void
+    {
+        $this->mostrarModalProgramacion = false;
+        $this->resetValidation();
+        $this->resetFormProgramacion();
+    }
+
+    /**
+     * Prepara el formulario de despacho a partir de una programación.
+     */
+    public function crearDesdeProgramacion($id): void
+    {
+        Gate::authorize('preparar_despachos');
+
+        $programacion = ProgramacionDespacho::query()
+            ->with(['detalles', 'sede'])
+            ->find($id);
+
+        if (! $programacion) {
+            session()->flash('error', 'La programación solicitada no existe.');
+
+            return;
+        }
+
+        if (! $programacion->activa) {
+            session()->flash('warning', 'La programación está pausada. Actívala antes de preparar el despacho.');
+
+            return;
+        }
+
+        $this->resetValidation();
+        $this->resetForm();
+        $this->sede_id = $programacion->sede_id;
+        $this->fecha_despacho = now()->toDateString();
+        $this->observaciones = $programacion->observaciones ?? '';
+        $this->items = [];
+
+        $lotesUsados = [];
+        $sinLote = [];
+
+        foreach ($programacion->detalles as $detalle) {
+            if (! $detalle->producto_id) {
+                $sinLote[] = $detalle->producto_nombre;
+
+                continue;
+            }
+
+            $lote = Lote::query()
+                ->with('producto')
+                ->where('producto_id', $detalle->producto_id)
+                ->where('stock_actual', '>', 0)
+                ->when(! empty($lotesUsados), fn ($query) => $query->whereNotIn('id', $lotesUsados))
+                ->orderByRaw('fecha_vencimiento IS NULL')
+                ->orderBy('fecha_vencimiento')
+                ->orderBy('id')
+                ->first();
+
+            if (! $lote) {
+                $sinLote[] = $detalle->producto_nombre;
+
+                continue;
+            }
+
+            $this->items[] = [
+                'lote_id' => $lote->id,
+                'cantidad' => (float) $detalle->cantidad,
+            ];
+
+            $lotesUsados[] = $lote->id;
+        }
+
+        $this->mostrarModal = true;
+
+        if ($sinLote !== []) {
+            session()->flash('warning', 'Sin stock para: '.implode(', ', $sinLote).'. Selecciona los lotes manualmente.');
+        } else {
+            session()->flash('info', 'Borrador cargado desde la programación. Revisa lotes y cantidades antes de registrar.');
+        }
+
         $this->dispatch('enfocar-buscador');
     }
 
@@ -120,6 +502,8 @@ class GestionDespachos extends Component
      */
     public function agregarLote($loteId): void
     {
+        Gate::authorize('preparar_despachos');
+
         $lote = Lote::query()->with('producto')->find($loteId);
 
         if (! $lote) {
@@ -164,6 +548,8 @@ class GestionDespachos extends Component
      */
     public function agregarPrimerLote(): void
     {
+        Gate::authorize('preparar_despachos');
+
         $lote = $this->resultadosLotes()->first();
 
         if (! $lote) {
@@ -188,6 +574,8 @@ class GestionDespachos extends Component
      */
     public function quitarItem(int $index): void
     {
+        Gate::authorize('preparar_despachos');
+
         unset($this->items[$index]);
         $this->items = array_values($this->items);
         $this->resetValidation();
@@ -202,6 +590,8 @@ class GestionDespachos extends Component
      */
     public function guardar(): void
     {
+        Gate::authorize('confirmar_despachos');
+
         $this->validate();
         $this->validarStockDisponible();
 
@@ -274,6 +664,8 @@ class GestionDespachos extends Component
      */
     public function verDetalle($id): void
     {
+        Gate::authorize('ver_despachos');
+
         if (! Despacho::query()->whereKey($id)->exists()) {
             session()->flash('error', 'El despacho solicitado no existe.');
 
@@ -296,6 +688,8 @@ class GestionDespachos extends Component
      */
     public function anular($id): void
     {
+        Gate::authorize('anular_despachos');
+
         $despacho = Despacho::query()->with('detalles.lote')->find($id);
 
         if (! $despacho) {
@@ -320,6 +714,10 @@ class GestionDespachos extends Component
             }
 
             $despacho->update(['estado' => Despacho::ESTADO_ANULADO]);
+
+            ProgramacionDespacho::query()
+                ->where('despacho_origen_id', $despacho->id)
+                ->update(['activa' => false]);
 
             Auditoria::create([
                 'user_id' => auth()->id(),
@@ -361,10 +759,11 @@ class GestionDespachos extends Component
     private function jefeAlmacen(): ?Empleado
     {
         return Empleado::query()
+            ->with('cargo')
             ->where('activo', true)
             ->orderBy('id')
             ->get()
-            ->first(fn (Empleado $empleado) => $this->cargoCoincide($empleado->cargo, 'jefe de almacen'));
+            ->first(fn (Empleado $empleado) => $this->cargoCoincide($empleado->cargo?->nombre, 'jefe de almacen'));
     }
 
     /**
@@ -374,7 +773,7 @@ class GestionDespachos extends Component
     {
         $responsable = $sede?->responsable;
 
-        if (! $responsable || ! $this->cargoCoincide($responsable->cargo, 'jefe de centro')) {
+        if (! $responsable || ! $this->cargoCoincide($responsable->cargo?->nombre, 'jefe de centro')) {
             return null;
         }
 
@@ -511,6 +910,64 @@ class GestionDespachos extends Component
     }
 
     /**
+     * Cambia el estado activo de una programación y lo audita.
+     */
+    private function cambiarEstadoProgramacion(int $id, bool $activa, string $accion, string $mensaje): void
+    {
+        Gate::authorize('programar_despachos');
+
+        $programacion = ProgramacionDespacho::query()->find($id);
+
+        if (! $programacion) {
+            session()->flash('error', 'La programación solicitada no existe.');
+
+            return;
+        }
+
+        $anteriores = ['activa' => (bool) $programacion->activa];
+
+        DB::transaction(function () use ($programacion, $activa, $accion, $anteriores) {
+            $programacion->update(['activa' => $activa]);
+
+            Auditoria::create([
+                'user_id' => auth()->id(),
+                'accion' => $accion,
+                'modelo' => 'programacion_despacho',
+                'modelo_id' => $programacion->id,
+                'descripcion' => $activa
+                    ? 'Programación de envío activada'
+                    : 'Programación de envío pausada',
+                'datos_anteriores' => $anteriores,
+                'datos_nuevos' => ['activa' => $activa],
+            ]);
+        });
+
+        session()->flash('success', $mensaje);
+    }
+
+    /**
+     * Datos de la programación que se guardan en la auditoría.
+     */
+    private function datosAuditoriaProgramacion(ProgramacionDespacho $programacion): array
+    {
+        $programacion->loadMissing(['detalles', 'sede']);
+
+        return [
+            'despacho_origen_id' => $programacion->despacho_origen_id,
+            'sede' => $programacion->sede?->nombre,
+            'cada_dias' => $programacion->cada_dias,
+            'fecha_inicio' => $programacion->fecha_inicio?->format('Y-m-d'),
+            'proxima_fecha' => $programacion->proxima_fecha?->toDateTimeString(),
+            'activa' => (bool) $programacion->activa,
+            'observaciones' => $programacion->observaciones,
+            'productos' => $programacion->detalles->map(fn ($detalle) => [
+                'producto' => $detalle->producto_nombre,
+                'cantidad' => (float) $detalle->cantidad,
+            ])->all(),
+        ];
+    }
+
+    /**
      * Datos del despacho que se guardan en la auditoría.
      */
     private function datosAuditoria(Despacho $despacho): array
@@ -557,6 +1014,26 @@ class GestionDespachos extends Component
     }
 
     /**
+     * Limpia las propiedades del formulario de programación.
+     */
+    private function resetFormProgramacion(): void
+    {
+        $this->reset([
+            'programacionId',
+            'programacionDespachoId',
+            'programacionSedeId',
+            'programacionCadaDias',
+            'programacionFechaInicio',
+            'programacionObservaciones',
+            'programacionDetalles',
+        ]);
+
+        $this->programacionCadaDias = 7;
+        $this->programacionFechaInicio = now()->addDays(7)->format('Y-m-d');
+        $this->programacionDetalles = [];
+    }
+
+    /**
      * Lista los despachos con búsqueda y paginación.
      */
     protected function listar()
@@ -564,6 +1041,7 @@ class GestionDespachos extends Component
         return Despacho::query()
             ->with(['sede', 'user', 'despachadoPor', 'recibidoPor'])
             ->withCount('detalles')
+            ->withCount(['programaciones as programaciones_activas_count' => fn ($query) => $query->where('activa', true)])
             ->withSum('detalles as total_unidades', 'cantidad')
             ->when($this->search !== '', function ($query) {
                 $termino = '%'.mb_strtolower(trim($this->search)).'%';
@@ -602,7 +1080,7 @@ class GestionDespachos extends Component
             : null;
 
         $sedeSeleccionada = filled($this->sede_id)
-            ? Sede::query()->with('responsable')->find($this->sede_id)
+            ? Sede::query()->with('responsable.cargo')->find($this->sede_id)
             : null;
 
         $loteIds = collect($this->items)
@@ -625,6 +1103,12 @@ class GestionDespachos extends Component
                 ->get()
                 ->keyBy('id'),
             'detalle' => $detalle,
+            'programaciones' => ProgramacionDespacho::query()
+                ->with(['sede', 'detalles'])
+                ->orderByDesc('activa')
+                ->orderBy('proxima_fecha')
+                ->limit(10)
+                ->get(),
         ]);
     }
 }

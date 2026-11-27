@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <style>
         @page {
-            margin: 15mm 12mm 25mm;
+            margin: 10mm 12mm 16mm;
         }
 
         body {
@@ -26,13 +26,17 @@
         }
 
         .header-logo {
-            width: 20mm;
+            width: 17mm;
             text-align: left;
         }
 
         .header-logo img {
-            max-width: 20mm;
+            max-width: 14mm;
             height: auto;
+        }
+
+        .header-logo--izquierda img {
+            max-width: 17mm;
         }
 
         .header-center {
@@ -41,7 +45,7 @@
         }
 
         .line1 {
-            font-size: 8.5pt;
+            font-size: 7.5pt;
             font-weight: 700;
             color: #1e3a5f;
             text-transform: uppercase;
@@ -51,8 +55,8 @@
         .dispatch-ref {
             width: 100%;
             border-bottom: 1px dashed #cbd5e1;
-            padding: 4px 0 12px;
-            margin-bottom: 12px;
+            padding: 2px 0 6px;
+            margin-bottom: 6px;
         }
 
         .label {
@@ -63,13 +67,13 @@
         }
 
         .code {
-            font-size: 14pt;
+            font-size: 8pt;
             font-weight: 700;
             color: #1e3a5f;
         }
 
         .encabezado-central {
-            font-size: 14pt;
+            font-size: 12pt;
             font-weight: 700;
             color: #1e3a5f;
             text-transform: uppercase;
@@ -84,14 +88,14 @@
 
         .info-table {
             width: 100%;
-            border-spacing: 4px;
-            margin-bottom: 12px;
+            border-spacing: 2px;
+            margin-bottom: 6px;
         }
 
         .info-card {
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 7px 9px;
+            padding: 4px 6px;
             width: 50%;
             vertical-align: top;
         }
@@ -133,8 +137,8 @@
         .observations {
             border: 1px solid #e2e8f0;
             border-radius: 4px;
-            padding: 8px 10px;
-            margin-bottom: 12px;
+            padding: 5px 7px;
+            margin-bottom: 6px;
         }
 
         .observations h3 {
@@ -155,15 +159,16 @@
         table.items {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 14px;
+            margin-top: 10px;
+            margin-bottom: 18mm;
         }
 
         table.items thead th {
             background: #1e3a5f;
             color: #ffffff;
-            padding: 7px 9px;
+            padding: 4px 6px;
             text-align: left;
-            font-size: 7.5pt;
+            font-size: 7pt;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -174,9 +179,9 @@
         }
 
         table.items tbody td {
-            padding: 7px 9px;
+            padding: 4px 6px;
             border-bottom: 1px solid #f1f5f9;
-            font-size: 9pt;
+            font-size: 8.5pt;
         }
 
         table.items tbody td:nth-child(2),
@@ -188,10 +193,22 @@
             background: #f8fafc;
         }
 
+        .pagina-nota {
+            position: relative;
+            height: 260mm;
+        }
+
+        .pagina-nota--salto {
+            page-break-after: always;
+        }
+
         .firmas {
+            position: absolute;
+            bottom: 16mm;
+            left: 0;
+            right: 0;
             width: 100%;
             border-spacing: 10px 0;
-            margin-top: 16px;
         }
 
         .firma {
@@ -213,11 +230,14 @@
             font-size: 8pt;
         }
 
-        .pie {
+        .pie-fijo {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
             border-top: 1.5px solid #1e3a5f;
             text-align: center;
             padding-top: 4px;
-            margin-top: 12px;
             font-size: 6.5pt;
             color: #1e3a5f;
             font-weight: 700;
@@ -225,7 +245,7 @@
             letter-spacing: 0.3px;
         }
 
-        .pie div {
+        .pie-fijo div {
             line-height: 1.3;
         }
 
@@ -247,105 +267,113 @@
         <div class="watermark">ANULADO</div>
     @endif
 
-    <table class="header">
-        <tr>
-            <td class="header-logo">
-                <img src="{{ public_path('images/logo-gob.png') }}" alt="Logo">
-            </td>
-            <td class="header-center">
-                <div class="line1">República Bolivariana de Venezuela</div>
-                <div class="line1">Gobernación Bolivariana del Estado Sucre</div>
-                <div class="line1">Servicio Autónomo de Protección Integral</div>
-                <div class="line1">al Niño, Niña y Adolescente del Estado Sucre</div>
-                <div class="line1">SAPINAES</div>
-            </td>
-            <td class="header-logo" style="text-align: right;">
-                <img src="{{ public_path('images/logo-sap.png') }}" alt="Logo institucional">
-            </td>
-        </tr>
-    </table>
+    @foreach ($paginas as $pagina)
+        <div class="pagina-nota {{ $loop->last ? '' : 'pagina-nota--salto' }}">
+            @if ($loop->first)
+                <table class="header">
+                    <tr>
+                        <td class="header-logo header-logo--izquierda">
+                            <img src="{{ public_path('images/logo-gob.png') }}" alt="Logo">
+                        </td>
+                        <td class="header-center">
+                            <div class="line1">República Bolivariana de Venezuela</div>
+                            <div class="line1">Gobernación Bolivariana del Estado Sucre</div>
+                            <div class="line1">Servicio Autónomo de Protección Integral</div>
+                            <div class="line1">al Niño, Niña y Adolescente del Estado Sucre</div>
+                            <div class="line1">SAPINAES</div>
+                        </td>
+                        <td class="header-logo" style="text-align: right;">
+                            <img src="{{ public_path('images/logo-sap.png') }}" alt="Logo institucional">
+                        </td>
+                    </tr>
+                </table>
 
-    <table class="dispatch-ref">
-        <tr>
-            <td style="width: 25%;">
-                <div class="label">Código</div>
-                <div class="code">{{ $despacho->numero }}</div>
-            </td>
-            <td class="encabezado-central">Nota de entrega</td>
-            <td class="date" style="width: 25%;">
-                Emitido: {{ $despacho->created_at?->format('d/m/Y h:i A') ?? $despacho->fecha_despacho?->format('d/m/Y') }}
-            </td>
-        </tr>
-    </table>
+                <table class="dispatch-ref">
+                    <tr>
+                        <td style="width: 25%;">
+                            <div class="label">Código</div>
+                            <div class="code">{{ $despacho->numero }}</div>
+                        </td>
+                        <td class="encabezado-central">Nota de entrega</td>
+                        <td class="date" style="width: 25%;">
+                            Emitido: {{ $despacho->created_at?->format('d/m/Y h:i A') ?? $despacho->fecha_despacho?->format('d/m/Y') }}
+                        </td>
+                    </tr>
+                </table>
 
-    <table class="info-table">
-        <tr>
-            <td class="info-card">
-                <h3>Sede de origen</h3>
-                <div class="value">Almacén Central</div>
-                <div class="meta">Orden de despacho</div>
-            </td>
-            <td class="info-card">
-                <h3>Sede de destino</h3>
-                <div class="value">{{ $despacho->sede?->nombre ?? '—' }}</div>
-                <div class="meta">{{ $despacho->sede?->codigo ?? '—' }}</div>
-                @if($despacho->consumo_interno)
-                    <div class="badge-interno">Consumo interno</div>
+                <table class="info-table">
+                    <tr>
+                        <td class="info-card">
+                            <h3>Sede de origen</h3>
+                            <div class="value">Almacén Central</div>
+                            <div class="meta">Orden de despacho</div>
+                        </td>
+                        <td class="info-card">
+                            <h3>Sede de destino</h3>
+                            <div class="value">{{ $despacho->sede?->nombre ?? '—' }}</div>
+                            <div class="meta">{{ $despacho->sede?->codigo ?? '—' }}</div>
+                            @if($despacho->consumo_interno)
+                                <div class="badge-interno">Consumo interno</div>
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="info-card">
+                            <h3>Persona que entrega</h3>
+                            <div class="value">{{ $despacho->despachado_por_nombre ?? trim(($despacho->despachadoPor?->nombres ?? '').' '.($despacho->despachadoPor?->apellidos ?? '')) ?: '—' }}</div>
+                        </td>
+                        <td class="info-card">
+                            <h3>Persona que recibe</h3>
+                            <div class="value">{{ $despacho->recibido_por_nombre ?? trim(($despacho->recibidoPor?->nombres ?? '').' '.($despacho->recibidoPor?->apellidos ?? '')) ?: '—' }}</div>
+                        </td>
+                    </tr>
+                </table>
+
+                @if($despacho->observaciones)
+                    <div class="observations">
+                        <h3>Descripción / Novedades</h3>
+                        <p>{{ $despacho->observaciones }}</p>
+                    </div>
                 @endif
-            </td>
-        </tr>
-        <tr>
-            <td class="info-card">
-                <h3>Persona que entrega</h3>
-                <div class="value">{{ $despacho->despachado_por_nombre ?? trim(($despacho->despachadoPor?->nombres ?? '').' '.($despacho->despachadoPor?->apellidos ?? '')) ?: '—' }}</div>
-            </td>
-            <td class="info-card">
-                <h3>Persona que recibe</h3>
-                <div class="value">{{ $despacho->recibido_por_nombre ?? trim(($despacho->recibidoPor?->nombres ?? '').' '.($despacho->recibidoPor?->apellidos ?? '')) ?: '—' }}</div>
-            </td>
-        </tr>
-    </table>
+            @endif
 
-    @if($despacho->observaciones)
-        <div class="observations">
-            <h3>Observaciones</h3>
-            <p>{{ $despacho->observaciones }}</p>
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Unidad/de medida</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($pagina as $detalle)
+                        <tr>
+                            <td>{{ $detalle->producto_nombre ?? $detalle->producto?->nombre ?? '—' }}</td>
+                            <td>{{ number_format($detalle->cantidad, 2, ',', '.') }}</td>
+                            <td>{{ $detalle->producto?->unidad_medida ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+            @if ($loop->last)
+                <table class="firmas">
+                    <tr>
+                        <td class="firma">
+                            <div class="firma-nombre">{{ $despacho->despachado_por_nombre ?? trim(($despacho->despachadoPor?->nombres ?? '').' '.($despacho->despachadoPor?->apellidos ?? '')) }}</div>
+                            <div class="firma-rol">Entrega conforme</div>
+                        </td>
+                        <td class="firma">
+                            <div class="firma-nombre">{{ $despacho->recibido_por_nombre ?? trim(($despacho->recibidoPor?->nombres ?? '').' '.($despacho->recibidoPor?->apellidos ?? '')) }}</div>
+                            <div class="firma-rol">Recibe conforme</div>
+                        </td>
+                    </tr>
+                </table>
+            @endif
         </div>
-    @endif
+    @endforeach
 
-    <table class="items">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                <th>Cantidad</th>
-                <th>Unidad/de medida</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($despacho->detalles as $detalle)
-                <tr>
-                    <td>{{ $detalle->producto_nombre ?? $detalle->producto?->nombre ?? '—' }}</td>
-                    <td>{{ number_format($detalle->cantidad, 2, ',', '.') }}</td>
-                    <td>{{ $detalle->producto?->unidad_medida ?? '—' }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-
-    <table class="firmas">
-        <tr>
-            <td class="firma">
-                <div class="firma-nombre">{{ $despacho->despachado_por_nombre ?? trim(($despacho->despachadoPor?->nombres ?? '').' '.($despacho->despachadoPor?->apellidos ?? '')) }}</div>
-                <div class="firma-rol">Entrega conforme</div>
-            </td>
-            <td class="firma">
-                <div class="firma-nombre">{{ $despacho->recibido_por_nombre ?? trim(($despacho->recibidoPor?->nombres ?? '').' '.($despacho->recibidoPor?->apellidos ?? '')) }}</div>
-                <div class="firma-rol">Recibe conforme</div>
-            </td>
-        </tr>
-    </table>
-
-    <div class="pie">
+    <div class="pie-fijo">
         <div>Por la Protección Integral De Los Niños, Niñas Y Adolescentes.</div>
         <div>Av. Arismendi, Frente Al Cuartel "Antonio José de Sucre". Teléfono: 0293-4322706</div>
         <div>RIF. G – 20007058 – 7</div>

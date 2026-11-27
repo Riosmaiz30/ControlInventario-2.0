@@ -18,7 +18,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CategoriaSeeder::class,
+            MarcaSeeder::class,
             ProductoSeeder::class,
+            CargoSeeder::class,
             SedeSeeder::class,
         ]);
 
@@ -26,8 +28,38 @@ class DatabaseSeeder extends Seeder
             ['email' => 'test@example.com'],
             [
                 'name' => 'Test User',
+                'role' => User::ROLE_ADMINISTRADOR,
                 'password' => Hash::make('password'),
             ]
         );
+
+        $usuarios = [
+            [
+                'name' => 'Administrador',
+                'email' => 'admin@inventario.local',
+                'role' => User::ROLE_ADMINISTRADOR,
+            ],
+            [
+                'name' => 'Jefe de Almacén',
+                'email' => 'jefe@inventario.local',
+                'role' => User::ROLE_JEFE_ALMACEN,
+            ],
+            [
+                'name' => 'Ayudante de Almacén',
+                'email' => 'ayudante@inventario.local',
+                'role' => User::ROLE_AYUDANTE_ALMACEN,
+            ],
+        ];
+
+        foreach ($usuarios as $usuario) {
+            User::firstOrCreate(
+                ['email' => $usuario['email']],
+                [
+                    'name' => $usuario['name'],
+                    'role' => $usuario['role'],
+                    'password' => Hash::make('password'),
+                ]
+            );
+        }
     }
 }

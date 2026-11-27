@@ -23,9 +23,11 @@
                 </div>
 
                 {{-- Nuevo despacho --}}
-                <button type="button" class="btn btn-primary btn-sm" wire:click="crear">
-                    <i class="bi bi-plus-lg me-1"></i> Nuevo Despacho
-                </button>
+                @can('preparar_despachos')
+                    <button type="button" class="btn btn-primary btn-sm" wire:click="crear">
+                        <i class="bi bi-plus-lg me-1"></i> Nuevo Despacho
+                    </button>
+                @endcan
             </div>
         </div>
 
@@ -40,7 +42,7 @@
                             <th class="text-center">Productos / Unidades</th>
                             <th>Despachado / Recibido</th>
                             <th class="text-center">Estado</th>
-                            <th class="text-center" style="width: 110px;">Acciones</th>
+                            <th class="text-center" style="width: 170px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody wire:loading.class="opacity-50">
@@ -87,8 +89,27 @@
                                     @else
                                         <span class="badge text-bg-success">Registrado</span>
                                     @endif
+
+                                    @if (($despacho->programaciones_activas_count ?? 0) > 0)
+                                        <span class="badge text-bg-info mt-1 d-block">
+                                            <i class="bi bi-clock-history me-1"></i>Programado
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="text-center text-nowrap">
+                                    @can('programar_despachos')
+                                        @if ($despacho->estado !== 'anulado')
+                                            <button
+                                                type="button"
+                                                class="btn btn-warning btn-sm"
+                                                wire:click="programar({{ $despacho->id }})"
+                                                title="Programar envío periódico"
+                                            >
+                                                <i class="bi bi-calendar2-week"></i>
+                                            </button>
+                                        @endif
+                                    @endcan
+
                                     <button
                                         type="button"
                                         class="btn btn-info btn-sm"
@@ -107,22 +128,24 @@
                                         <i class="bi bi-file-earmark-pdf"></i>
                                     </a>
 
-                                    @if ($despacho->estado !== 'anulado')
-                                        <button
-                                            type="button"
-                                            class="btn btn-danger btn-sm"
-                                            data-confirm-delete
-                                            data-confirm-id="{{ $despacho->id }}"
-                                            data-confirm-method="anular"
-                                            data-confirm-entity="este despacho"
-                                            data-confirm-title="¿Anular este despacho?"
-                                            data-confirm-text="Las cantidades descontadas serán devueltas a sus lotes de origen. El despacho quedará registrado como anulado."
-                                            data-confirm-button="Sí, anular"
-                                            title="Anular despacho"
-                                        >
-                                            <i class="bi bi-x-octagon"></i>
-                                        </button>
-                                    @endif
+                                    @can('anular_despachos')
+                                        @if ($despacho->estado !== 'anulado')
+                                            <button
+                                                type="button"
+                                                class="btn btn-danger btn-sm"
+                                                data-confirm-delete
+                                                data-confirm-id="{{ $despacho->id }}"
+                                                data-confirm-method="anular"
+                                                data-confirm-entity="este despacho"
+                                                data-confirm-title="¿Anular este despacho?"
+                                                data-confirm-text="Las cantidades descontadas serán devueltas a sus lotes de origen. El despacho quedará registrado como anulado."
+                                                data-confirm-button="Sí, anular"
+                                                title="Anular despacho"
+                                            >
+                                                <i class="bi bi-x-octagon"></i>
+                                            </button>
+                                        @endif
+                                    @endcan
                                 </td>
                             </tr>
                         @empty
@@ -151,6 +174,130 @@
         @endif
     </div>
 
+    {{-- Próximos envíos programados --}}
+    @if ($programaciones->isNotEmpty())
+        <div class="card card-outline card-info mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">
+                    <i class="bi bi-clock-history me-1"></i> Próximos envíos programados
+                </h3>
+                <span class="badge text-bg-info">{{ $programaciones->count() }}</span>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Sede</th>
+                                <th>Próximo recordatorio</th>
+                                <th class="text-center">Periodo</th>
+                                <th>Productos sugeridos</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-center" style="width: 210px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($programaciones as $programacion)
+                                <tr wire:key="programacion-{{ $programacion->id }}">
+                                    <td class="fw-semibold">
+                                        {{ $programacion->sede?->nombre ?? 'Sede eliminada' }}
+                                    </td>
+                                    <td class="text-nowrap">
+                                        {{ $programacion->proxima_fecha_texto }}
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        Cada {{ $programacion->cada_dias }}
+                                        {{ $programacion->cada_dias === 1 ? 'día' : 'días' }}
+                                    </td>
+                                    <td>
+                                        @foreach ($programacion->detalles as $productoProgramado)
+                                            <div class="small">
+                                                {{ $productoProgramado->producto_nombre }}
+                                                <span class="text-muted">
+                                                    ({{ number_format((float) $productoProgramado->cantidad, 2, ',', '.') }})
+                                                </span>
+                                            </div>
+                                        @endforeach
+                                    </td>
+                                    <td class="text-center">
+                                        @if ($programacion->activa)
+                                            <span class="badge text-bg-success">Activa</span>
+                                        @else
+                                            <span class="badge text-bg-secondary">Pausada</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center text-nowrap">
+                                        @can('preparar_despachos')
+                                            @if ($programacion->activa)
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-primary btn-sm"
+                                                    wire:click="crearDesdeProgramacion({{ $programacion->id }})"
+                                                    title="Preparar despacho sugerido"
+                                                >
+                                                    <i class="bi bi-paper-plane"></i>
+                                                </button>
+                                            @endif
+                                        @endcan
+
+                                        @can('programar_despachos')
+                                            @if (! $programacion->activa)
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-success btn-sm"
+                                                    wire:click="activarProgramacion({{ $programacion->id }})"
+                                                    title="Activar programación"
+                                                >
+                                                    <i class="bi bi-play-fill"></i>
+                                                </button>
+                                            @endif
+
+                                            <button
+                                                type="button"
+                                                class="btn btn-warning btn-sm"
+                                                wire:click="editarProgramacion({{ $programacion->id }})"
+                                                title="Editar programación"
+                                            >
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+
+                                            @if ($programacion->activa)
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-secondary btn-sm"
+                                                    wire:click="pausarProgramacion({{ $programacion->id }})"
+                                                    title="Pausar programación"
+                                                >
+                                                    <i class="bi bi-pause-fill"></i>
+                                                </button>
+                                            @endif
+
+                                            <button
+                                                type="button"
+                                                class="btn btn-danger btn-sm"
+                                                data-confirm-delete
+                                                data-confirm-id="{{ $programacion->id }}"
+                                                data-confirm-method="eliminarProgramacion"
+                                                data-confirm-entity="esta programación"
+                                                data-confirm-title="¿Eliminar esta programación?"
+                                                data-confirm-text="La programación y sus productos sugeridos serán eliminados. Los despachos ya registrados no se modificarán."
+                                                data-confirm-button="Sí, eliminar"
+                                                title="Eliminar programación"
+                                            >
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        @endcan
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{-- Formulario (modal) --}}
     @if ($mostrarModal)
         <div
@@ -164,7 +311,11 @@
         >
             <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
-                    <form wire:submit="guardar">
+                    <form
+                        wire:submit="guardar"
+                        class="d-flex flex-column flex-grow-1"
+                        style="min-height: 0; max-height: 100%;"
+                    >
                         <div class="modal-header">
                             <h5 class="modal-title">
                                 <i class="bi bi-paper-plane me-1"></i> Nuevo Despacho
@@ -247,7 +398,7 @@
                                             <span class="fw-semibold">
                                                 {{ trim($jefeAlmacen->nombres.' '.$jefeAlmacen->apellidos) }}
                                             </span>
-                                            <span class="text-muted small">— {{ $jefeAlmacen->cargo }}</span>
+                                            <span class="text-muted small">— {{ $jefeAlmacen->cargo?->nombre }}</span>
                                         @else
                                             <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
                                             <span class="text-danger small">
@@ -275,7 +426,7 @@
                                             <span class="fw-semibold">
                                                 {{ trim($jefeCentro->nombres.' '.$jefeCentro->apellidos) }}
                                             </span>
-                                            <span class="text-muted small">— {{ $jefeCentro->cargo }}</span>
+                                            <span class="text-muted small">— {{ $jefeCentro->cargo?->nombre }}</span>
                                         @else
                                             <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
                                             <span class="text-danger small">
@@ -461,32 +612,207 @@
                                 @enderror
                             </div>
 
-                            <div class="d-flex justify-content-end gap-2 mt-3 pt-3 border-top bg-white position-sticky bottom-0">
-                                <button type="button" class="btn btn-secondary" wire:click="cerrarModal">
-                                    <i class="bi bi-x-lg me-1"></i> Cancelar
-                                </button>
+                        </div>
 
-                                <button
-                                    type="submit"
-                                    class="btn btn-primary"
-                                    wire:loading.attr="disabled"
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="cerrarModal">
+                                <i class="bi bi-x-lg me-1"></i> Cancelar
+                            </button>
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                wire:loading.attr="disabled"
+                                wire:target="guardar"
+                            >
+                                <span
+                                    wire:loading
                                     wire:target="guardar"
-                                >
-                                    <span
-                                        wire:loading
-                                        wire:target="guardar"
-                                        class="spinner-border spinner-border-sm me-1"
-                                        role="status"
-                                        aria-hidden="true"
-                                    ></span>
-                                    <i
-                                        class="bi bi-save me-1"
-                                        wire:loading.remove
-                                        wire:target="guardar"
-                                    ></i>
-                                    Registrar Despacho
-                                </button>
+                                    class="spinner-border spinner-border-sm me-1"
+                                    role="status"
+                                    aria-hidden="true"
+                                ></span>
+                                <i
+                                    class="bi bi-save me-1"
+                                    wire:loading.remove
+                                    wire:target="guardar"
+                                ></i>
+                                Registrar Despacho
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Programación de envíos (modal) --}}
+    @if ($mostrarModalProgramacion)
+        <div
+            class="modal fade show d-block"
+            tabindex="-1"
+            role="dialog"
+            aria-modal="true"
+            style="background-color: rgba(0, 0, 0, .5);"
+            wire:keydown.escape.window="cerrarModalProgramacion"
+            wire:click.self="cerrarModalProgramacion"
+        >
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="bi bi-calendar2-week me-1"></i>
+                            {{ $programacionId ? 'Editar programación de envío' : 'Programar envío periódico' }}
+                        </h5>
+                        <button type="button" class="btn-close" wire:click="cerrarModalProgramacion" aria-label="Cerrar"></button>
+                    </div>
+
+                    <form wire:submit.prevent="guardarProgramacion">
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label for="programacionSedeId" class="form-label">Sede de destino</label>
+                                    <select
+                                        id="programacionSedeId"
+                                        class="form-select @error('programacionSedeId') is-invalid @enderror"
+                                        wire:model="programacionSedeId"
+                                    >
+                                        <option value="">Seleccione una sede...</option>
+                                        @foreach ($sedes as $sede)
+                                            <option value="{{ $sede->id }}">{{ $sede->nombre }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('programacionSedeId')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label for="programacionCadaDias" class="form-label">Cada cuántos días</label>
+                                    <input
+                                        id="programacionCadaDias"
+                                        type="number"
+                                        min="1"
+                                        max="365"
+                                        class="form-control @error('programacionCadaDias') is-invalid @enderror"
+                                        wire:model="programacionCadaDias"
+                                    >
+                                    @error('programacionCadaDias')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label for="programacionFechaInicio" class="form-label">Fecha de inicio</label>
+                                    <input
+                                        id="programacionFechaInicio"
+                                        type="date"
+                                        class="form-control @error('programacionFechaInicio') is-invalid @enderror"
+                                        wire:model="programacionFechaInicio"
+                                    >
+                                    @error('programacionFechaInicio')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="alert alert-info py-2 px-3 mb-0 w-100 small">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        El aviso se genera en la fecha de inicio y luego cada N días.
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <label for="programacionObservaciones" class="form-label">Observaciones</label>
+                                    <textarea
+                                        id="programacionObservaciones"
+                                        rows="2"
+                                        class="form-control @error('programacionObservaciones') is-invalid @enderror"
+                                        wire:model="programacionObservaciones"
+                                        placeholder="Notas que se copiarán al borrador del próximo despacho..."
+                                    ></textarea>
+                                    @error('programacionObservaciones')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
                             </div>
+
+                            <div class="mt-4">
+                                <h6 class="fw-semibold">
+                                    <i class="bi bi-box-seam me-1"></i> Productos sugeridos
+                                </h6>
+                                <p class="text-muted small mb-2">
+                                    Estas cantidades se cargarán en el borrador del próximo despacho.
+                                    El lote se seleccionará según disponibilidad al prepararlo.
+                                </p>
+
+                                @error('programacionDetalles')
+                                    <div class="alert alert-danger py-2">{{ $message }}</div>
+                                @enderror
+
+                                <div class="table-responsive border rounded">
+                                    <table class="table table-sm table-striped align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Producto</th>
+                                                <th style="width: 160px;">Cantidad sugerida</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse ($programacionDetalles as $index => $detalleProgramacion)
+                                                <tr>
+                                                    <td>{{ $detalleProgramacion['producto_nombre'] }}</td>
+                                                    <td>
+                                                        <input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0.01"
+                                                            class="form-control form-control-sm @error('programacionDetalles.'.$index.'.cantidad') is-invalid @enderror"
+                                                            wire:model="programacionDetalles.{{ $index }}.cantidad"
+                                                        >
+                                                        @error('programacionDetalles.'.$index.'.cantidad')
+                                                            <div class="invalid-feedback">{{ $message }}</div>
+                                                        @enderror
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="2" class="text-center text-muted py-3">
+                                                        No hay productos para programar.
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="cerrarModalProgramacion">
+                                <i class="bi bi-x-lg me-1"></i> Cancelar
+                            </button>
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                wire:loading.attr="disabled"
+                                wire:target="guardarProgramacion"
+                            >
+                                <span
+                                    wire:loading
+                                    wire:target="guardarProgramacion"
+                                    class="spinner-border spinner-border-sm me-1"
+                                    role="status"
+                                    aria-hidden="true"
+                                ></span>
+                                <i
+                                    class="bi bi-save me-1"
+                                    wire:loading.remove
+                                    wire:target="guardarProgramacion"
+                                ></i>
+                                Guardar programación
+                            </button>
                         </div>
                     </form>
                 </div>

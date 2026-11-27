@@ -27,6 +27,7 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            'role' => User::ROLE_ADMINISTRADOR,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
@@ -40,6 +41,36 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Asigna el rol de administrador.
+     */
+    public function administrador(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_ADMINISTRADOR,
+        ]);
+    }
+
+    /**
+     * Asigna el rol de jefe de almacén.
+     */
+    public function jefeAlmacen(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_JEFE_ALMACEN,
+        ]);
+    }
+
+    /**
+     * Asigna el rol de ayudante de almacén.
+     */
+    public function ayudanteAlmacen(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => User::ROLE_AYUDANTE_ALMACEN,
         ]);
     }
 }

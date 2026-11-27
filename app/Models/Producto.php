@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class Producto extends Model
 {
     protected $table = 'productos';
-    
+
     protected $fillable = [
         'categoria_id',
+        'marca_id',
         'sku',
         'nombre',
         'unidad_medida',
@@ -55,7 +57,7 @@ class Producto extends Model
             ? ((int) substr($ultimoCodigo, strlen($prefijo) + 1)) + 1
             : 1;
 
-        return "{$prefijo}-" . str_pad((string) $consecutivo, 3, '0', STR_PAD_LEFT);
+        return "{$prefijo}-".str_pad((string) $consecutivo, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -97,6 +99,12 @@ class Producto extends Model
     public function categoria()
     {
         return $this->belongsTo(Categoria::class, 'categoria_id');
+    }
+
+    // Relación: Un producto pertenece a una marca
+    public function marca(): BelongsTo
+    {
+        return $this->belongsTo(Marca::class, 'marca_id');
     }
 
     // Relación: Un producto tiene muchos lotes de entrada

@@ -19,6 +19,13 @@ class GestionLotesTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
+
     private function producto(string $nombre = 'Harina de maíz', string $sku = 'HAR-001'): Producto
     {
         $categoria = Categoria::create([
@@ -215,7 +222,7 @@ class GestionLotesTest extends TestCase
 
         foreach (range(1, 11) as $indice) {
             $this->lote($producto, $proveedor, [
-                'numero_lote' => 'LOTE-' . str_pad((string) $indice, 3, '0', STR_PAD_LEFT),
+                'numero_lote' => 'LOTE-'.str_pad((string) $indice, 3, '0', STR_PAD_LEFT),
             ]);
         }
 

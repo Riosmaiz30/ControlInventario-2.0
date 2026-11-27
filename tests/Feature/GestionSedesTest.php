@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\GestionSedes;
+use App\Models\Cargo;
 use App\Models\Despacho;
 use App\Models\Empleado;
 use App\Models\Sede;
@@ -15,6 +16,13 @@ class GestionSedesTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
+
     private function empleado(array $datos = []): Empleado
     {
         return Empleado::create(array_merge([
@@ -22,7 +30,7 @@ class GestionSedesTest extends TestCase
             'nombres' => 'Ana',
             'apellidos' => 'Pérez',
             'telefono' => '0414-1234567',
-            'cargo' => 'Administradora',
+            'cargo_id' => Cargo::factory()->create()->id,
             'activo' => true,
         ], $datos));
     }
@@ -183,7 +191,6 @@ class GestionSedesTest extends TestCase
             'cedula' => 'V-87654321',
             'nombres' => 'Luis',
             'apellidos' => 'Gómez',
-            'cargo' => 'Almacenista',
         ]);
 
         $this->sede([

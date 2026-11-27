@@ -15,6 +15,13 @@ class GestionAuditoriaTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
+
     public function test_establece_la_clave_cuando_no_existe(): void
     {
         Livewire::test(GestionAuditoria::class)

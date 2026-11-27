@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Categoria;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -14,10 +15,13 @@ class GestionCategorias extends Component
     public string $search = '';
 
     public $categoria_id = null;
+
     public $nombre = '';
+
     public $descripcion = '';
 
     public bool $isEditing = false;
+
     public bool $mostrarModal = false;
 
     protected function rules(): array
@@ -58,6 +62,8 @@ class GestionCategorias extends Component
 
     public function crear(): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $this->resetValidation();
         $this->resetForm();
         $this->isEditing = false;
@@ -66,6 +72,8 @@ class GestionCategorias extends Component
 
     public function guardar(): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $datos = $this->validate();
 
         Categoria::create($datos);
@@ -78,6 +86,8 @@ class GestionCategorias extends Component
 
     public function editar($id): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $categoria = Categoria::findOrFail($id);
 
         $this->resetValidation();
@@ -90,6 +100,8 @@ class GestionCategorias extends Component
 
     public function actualizar(): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         if (! $this->categoria_id) {
             return;
         }
@@ -107,6 +119,8 @@ class GestionCategorias extends Component
 
     public function eliminar($id): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $categoria = Categoria::findOrFail($id);
 
         if ($categoria->productos()->exists()) {
@@ -147,7 +161,7 @@ class GestionCategorias extends Component
             ->withCount('productos')
             ->when($this->search !== '', function ($query) {
                 $texto = trim($this->search);
-                $termino = '%' . mb_strtolower($texto) . '%';
+                $termino = '%'.mb_strtolower($texto).'%';
 
                 $query->where(function ($query) use ($texto, $termino) {
                     $query->whereRaw('LOWER(nombre) LIKE ?', [$termino])

@@ -22,10 +22,28 @@
                     >
                 </div>
 
+                {{-- Filtro por marca --}}
+                <div class="input-group input-group-sm" style="width: 200px;">
+                    <span class="input-group-text"><i class="bi bi-bookmark-star"></i></span>
+                    <select
+                        class="form-select"
+                        wire:model.live="marcaFiltro"
+                        aria-label="Filtrar productos por marca"
+                    >
+                        <option value="">Todas las marcas</option>
+                        <option value="sin-marca">Sin marca</option>
+                        @foreach ($marcas as $marca)
+                            <option value="{{ $marca->id }}">{{ $marca->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 {{-- Nuevo producto --}}
-                <button type="button" class="btn btn-primary btn-sm" wire:click="crear">
-                    <i class="bi bi-plus-lg me-1"></i> Nuevo Producto
-                </button>
+                @can('gestionar_productos')
+                    <button type="button" class="btn btn-primary btn-sm" wire:click="crear">
+                        <i class="bi bi-plus-lg me-1"></i> Nuevo Producto
+                    </button>
+                @endcan
             </div>
         </div>
 
@@ -37,8 +55,10 @@
                             <th>Código de producto</th>
                             <th>Nombre</th>
                             <th>Categoría</th>
+                            <th>Marca</th>
                             <th>Unidad de Medida</th>
                             <th>Empaque</th>
+                            <th class="text-end">Stock disponible</th>
                             <th class="text-end">Stock Mínimo de Alerta</th>
                             <th class="text-center" style="width: 130px;">Acciones</th>
                         </tr>
@@ -51,6 +71,13 @@
                                 </td>
                                 <td>{{ $producto->nombre }}</td>
                                 <td>{{ $producto->categoria?->nombre ?? 'Sin categoría' }}</td>
+                                <td>
+                                    @if ($producto->marca)
+                                        <span class="badge text-bg-light border">{{ $producto->marca->nombre }}</span>
+                                    @else
+                                        <span class="text-muted">Sin marca</span>
+                                    @endif
+                                </td>
                                 <td>{{ $unidades[$producto->unidad_medida] ?? $producto->unidad_medida }}</td>
                                 <td>
                                     @if ($producto->descripcion_empaque)
@@ -59,34 +86,53 @@
                                         <span class="text-muted">—</span>
                                     @endif
                                 </td>
+                                @php
+                                    $stockDisponible = (float) ($producto->stock_disponible ?? 0);
+                                    $stockMinimo = (float) $producto->stock_minimo_alerta;
+                                @endphp
                                 <td class="text-end">
-                                    {{ number_format((float) $producto->stock_minimo_alerta, 2, ',', '.') }}
+                                    <span class="fw-semibold {{ $stockDisponible <= $stockMinimo ? 'text-danger' : 'text-success' }}">
+                                        {{ number_format($stockDisponible, 2, ',', '.') }}
+                                    </span>
+                                    @if ($stockDisponible <= $stockMinimo)
+                                        <span class="badge text-bg-danger ms-1">Bajo mínimo</span>
+                                    @endif
+                                    <div class="small text-muted">
+                                        {{ $unidades[$producto->unidad_medida] ?? $producto->unidad_medida }}
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    {{ number_format($stockMinimo, 2, ',', '.') }}
                                 </td>
                                 <td class="text-center">
-                                    <button
-                                        type="button"
-                                        class="btn btn-warning btn-sm"
-                                        wire:click="editar({{ $producto->id }})"
-                                        title="Editar"
-                                    >
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-danger btn-sm"
-                                        wire:click="eliminar({{ $producto->id }})"
-                                        data-confirm-delete
-                                        data-confirm-id="{{ $producto->id }}"
-                                        data-confirm-entity="este producto"
-                                        title="Eliminar"
-                                    >
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                    @can('gestionar_productos')
+                                        <button
+                                            type="button"
+                                            class="btn btn-warning btn-sm"
+                                            wire:click="editar({{ $producto->id }})"
+                                            title="Editar"
+                                        >
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="btn btn-danger btn-sm"
+                                            wire:click="eliminar({{ $producto->id }})"
+                                            data-confirm-delete
+                                            data-confirm-id="{{ $producto->id }}"
+                                            data-confirm-entity="este producto"
+                                            title="Eliminar"
+                                        >
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    @else
+                                        <span class="text-muted">Solo lectura</span>
+                                    @endcan
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-5">
+                                <td colspan="9" class="text-center text-muted py-5">
                                     <i class="bi bi-inbox fs-2 d-block mb-2"></i>
                                     No se encontraron productos.
                                 </td>
@@ -118,7 +164,7 @@
             role="dialog"
             aria-modal="true"
             style="background-color: rgba(0, 0, 0, .5);"
-            wire:keydown.escape.window="cerrarModal"
+            wire:keydown.escape.window="cerrarModalConEscape"
             wire:click.self="cerrarModal"
         >
             <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -190,7 +236,39 @@
                                     @enderror
                                 </div>
 
-                                <div class="col-md-3">
+                                <div class="col-md-6">
+                                    <label for="marca_id" class="form-label">
+                                        Marca
+                                    </label>
+                                    <div class="input-group">
+                                        <select
+                                            id="marca_id"
+                                            class="form-select @error('marca_id') is-invalid @enderror"
+                                            wire:model="marca_id"
+                                        >
+                                            <option value="">Sin marca</option>
+                                            @foreach ($marcas as $marca)
+                                                <option value="{{ $marca->id }}">
+                                                    {{ $marca->nombre }}{{ $marca->activo ? '' : ' (inactiva)' }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-primary"
+                                            wire:click="crearMarca"
+                                            title="Agregar nueva marca"
+                                        >
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    </div>
+                                    @error('marca_id')
+                                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                                    @enderror
+                                    <div class="form-text">Si la marca no aparece, créala con el botón +.</div>
+                                </div>
+
+                                <div class="col-md-4">
                                     <label for="unidad_medida" class="form-label">
                                         Unidad de Medida <span class="text-danger">*</span>
                                     </label>
@@ -209,7 +287,7 @@
                                     @enderror
                                 </div>
 
-                                <div class="col-md-3">
+                                <div class="col-md-4">
                                     <label for="stock_minimo_alerta" class="form-label">
                                         Stock Mínimo de Alerta <span class="text-danger">*</span>
                                     </label>
@@ -299,6 +377,90 @@
                                     wire:target="guardar,actualizar"
                                 ></i>
                                 {{ $isEditing ? 'Actualizar' : 'Guardar' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Alta rápida de marca (modal) --}}
+    @if ($mostrarModalMarca)
+        <div
+            class="modal fade show d-block"
+            tabindex="-1"
+            role="dialog"
+            aria-modal="true"
+            style="background-color: rgba(0, 0, 0, .5); z-index: 1060;"
+            wire:click.self="cerrarModalMarca"
+        >
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <form wire:submit="guardarMarca">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-bookmark-star me-1"></i> Nueva Marca
+                            </h5>
+                            <button type="button" class="btn-close" wire:click="cerrarModalMarca" aria-label="Cerrar"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="nuevo_marca_nombre" class="form-label">
+                                    Nombre <span class="text-danger">*</span>
+                                </label>
+                                <input
+                                    id="nuevo_marca_nombre"
+                                    type="text"
+                                    class="form-control @error('nuevoMarcaNombre') is-invalid @enderror"
+                                    wire:model="nuevoMarcaNombre"
+                                    placeholder="Ej: Polar"
+                                >
+                                @error('nuevoMarcaNombre')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+
+                            <div class="mb-0">
+                                <label for="nuevo_marca_descripcion" class="form-label">Descripción</label>
+                                <textarea
+                                    id="nuevo_marca_descripcion"
+                                    rows="3"
+                                    class="form-control @error('nuevoMarcaDescripcion') is-invalid @enderror"
+                                    wire:model="nuevoMarcaDescripcion"
+                                    placeholder="Descripción de la marca"
+                                ></textarea>
+                                @error('nuevoMarcaDescripcion')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" wire:click="cerrarModalMarca">
+                                <i class="bi bi-x-lg me-1"></i> Cancelar
+                            </button>
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                                wire:loading.attr="disabled"
+                                wire:target="guardarMarca"
+                            >
+                                <span
+                                    wire:loading
+                                    wire:target="guardarMarca"
+                                    class="spinner-border spinner-border-sm me-1"
+                                    role="status"
+                                    aria-hidden="true"
+                                ></span>
+                                <i
+                                    class="bi bi-save me-1"
+                                    wire:loading.remove
+                                    wire:target="guardarMarca"
+                                ></i>
+                                Guardar Marca
                             </button>
                         </div>
                     </form>

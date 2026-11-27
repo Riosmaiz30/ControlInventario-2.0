@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\GestionCategorias;
 use App\Models\Categoria;
 use App\Models\Producto;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -12,6 +13,13 @@ use Tests\TestCase;
 class GestionCategoriasTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
 
     public function test_crea_una_categoria(): void
     {
@@ -99,7 +107,7 @@ class GestionCategoriasTest extends TestCase
         $categoria = Categoria::create(['nombre' => 'Abarrotes']);
 
         $this->assertSame(
-            'CAT-' . str_pad((string) $categoria->id, 4, '0', STR_PAD_LEFT),
+            'CAT-'.str_pad((string) $categoria->id, 4, '0', STR_PAD_LEFT),
             $categoria->codigo
         );
         $this->assertMatchesRegularExpression('/^CAT-\d{4}$/', $categoria->codigo);

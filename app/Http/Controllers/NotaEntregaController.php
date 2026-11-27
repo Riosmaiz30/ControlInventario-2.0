@@ -16,8 +16,11 @@ class NotaEntregaController extends Controller
             'detalles.producto',
         ]);
 
+        $paginas = $despacho->detalles->sortBy('id')->values()->chunk(15);
+
         return Pdf::view('pdf.nota-entrega', [
             'despacho' => $despacho,
+            'paginas' => $paginas,
         ])->format('a4')->download("nota-entrega-{$despacho->numero}.pdf");
     }
 }

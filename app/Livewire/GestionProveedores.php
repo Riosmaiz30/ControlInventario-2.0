@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Proveedor;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -14,13 +15,19 @@ class GestionProveedores extends Component
     public string $search = '';
 
     public $proveedor_id = null;
+
     public $nombre = '';
+
     public $rif_nit = '';
+
     public $telefono = '';
+
     public $correo = '';
+
     public $direccion = '';
 
     public bool $isEditing = false;
+
     public bool $mostrarModal = false;
 
     protected function rules(): array
@@ -72,6 +79,8 @@ class GestionProveedores extends Component
 
     public function crear(): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $this->resetValidation();
         $this->resetForm();
         $this->isEditing = false;
@@ -80,6 +89,8 @@ class GestionProveedores extends Component
 
     public function guardar(): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $datos = $this->validate();
         $datos['rif'] = $datos['rif_nit'];
         unset($datos['rif_nit']);
@@ -94,6 +105,8 @@ class GestionProveedores extends Component
 
     public function editar($id): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $proveedor = Proveedor::findOrFail($id);
 
         $this->resetValidation();
@@ -109,6 +122,8 @@ class GestionProveedores extends Component
 
     public function actualizar(): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         if (! $this->proveedor_id) {
             return;
         }
@@ -128,6 +143,8 @@ class GestionProveedores extends Component
 
     public function eliminar($id): void
     {
+        Gate::authorize('gestionar_catalogos');
+
         $proveedor = Proveedor::findOrFail($id);
 
         if ($proveedor->lotes()->exists()) {
@@ -169,7 +186,7 @@ class GestionProveedores extends Component
     {
         return Proveedor::query()
             ->when($this->search !== '', function ($query) {
-                $termino = '%' . mb_strtolower(trim($this->search)) . '%';
+                $termino = '%'.mb_strtolower(trim($this->search)).'%';
 
                 $query->where(function ($query) use ($termino) {
                     $query->whereRaw('LOWER(nombre) LIKE ?', [$termino])

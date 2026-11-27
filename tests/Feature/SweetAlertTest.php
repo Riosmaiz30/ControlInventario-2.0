@@ -7,6 +7,7 @@ use App\Livewire\GestionEmpleados;
 use App\Livewire\GestionProductos;
 use App\Livewire\GestionProveedores;
 use App\Livewire\GestionSedes;
+use App\Models\Cargo;
 use App\Models\Categoria;
 use App\Models\Empleado;
 use App\Models\Producto;
@@ -21,6 +22,13 @@ class SweetAlertTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
+
     private function datosBase(): void
     {
         $categoria = Categoria::create([
@@ -33,7 +41,7 @@ class SweetAlertTest extends TestCase
             'nombres' => 'Ana',
             'apellidos' => 'Pérez',
             'telefono' => '0414-1234567',
-            'cargo' => 'Administradora',
+            'cargo_id' => Cargo::factory()->create(['nombre' => 'Administradora'])->id,
             'activo' => true,
         ]);
 
@@ -75,7 +83,7 @@ class SweetAlertTest extends TestCase
             Livewire::test($componente)
                 ->assertSee('data-confirm-delete', false)
                 ->assertSee('data-confirm-id="', false)
-                ->assertSee('data-confirm-entity="' . $entidad . '"', false)
+                ->assertSee('data-confirm-entity="'.$entidad.'"', false)
                 ->assertDontSee('wire:confirm', false);
         }
     }

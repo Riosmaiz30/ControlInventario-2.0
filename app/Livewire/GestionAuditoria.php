@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Auditoria;
 use App\Models\Configuracion;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
@@ -12,7 +13,9 @@ class GestionAuditoria extends Component
 {
     /** Campos del formulario de clave. */
     public $clave_actual = '';
+
     public $nueva_clave = '';
+
     public $nueva_clave_confirmation = '';
 
     /**
@@ -71,6 +74,8 @@ class GestionAuditoria extends Component
      */
     public function guardar(): void
     {
+        Gate::authorize('ver_auditoria');
+
         $datos = $this->validate();
 
         Configuracion::establecer(

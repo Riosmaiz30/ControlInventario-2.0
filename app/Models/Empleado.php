@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Empleado extends Model
 {
@@ -13,13 +14,19 @@ class Empleado extends Model
         'nombres',
         'apellidos',
         'telefono',
-        'cargo',
+        'cargo_id',
         'activo',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
     ];
+
+    // Relación: Un empleado pertenece a un cargo.
+    public function cargo(): BelongsTo
+    {
+        return $this->belongsTo(Cargo::class, 'cargo_id');
+    }
 
     // Relación: Un empleado puede tener una sede a su cargo
     public function sedeACargo()

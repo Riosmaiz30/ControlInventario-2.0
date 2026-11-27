@@ -4,7 +4,11 @@ namespace Tests\Feature;
 
 use App\Livewire\GestionProductos;
 use App\Models\Categoria;
+use App\Models\Lote;
+use App\Models\Marca;
 use App\Models\Producto;
+use App\Models\Proveedor;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -12,6 +16,13 @@ use Tests\TestCase;
 class GestionProductosTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->actingAs(User::factory()->administrador()->create());
+    }
 
     private function categoria(): Categoria
     {
@@ -30,6 +41,27 @@ class GestionProductosTest extends TestCase
             'unidad_medida' => 'kg',
             'stock_minimo_alerta' => 5,
         ], $atributos));
+    }
+
+    private function proveedor(): Proveedor
+    {
+        return Proveedor::create([
+            'nombre' => 'Distribuidora ABC',
+            'rif' => 'J-12345678-9',
+        ]);
+    }
+
+    private function lote(Producto $producto, Proveedor $proveedor, float $stockActual, string $numeroLote): Lote
+    {
+        return Lote::create([
+            'producto_id' => $producto->id,
+            'proveedor_id' => $proveedor->id,
+            'numero_lote' => $numeroLote,
+            'stock_inicial' => $stockActual,
+            'stock_actual' => $stockActual,
+            'fecha_registro' => now()->format('Y-m-d'),
+            'fecha_vencimiento' => now()->addYear()->format('Y-m-d'),
+        ]);
     }
 
     public function test_crea_un_producto_con_datos_validos(): void
@@ -330,5 +362,220 @@ class GestionProductosTest extends TestCase
             ->set('search', 'ARR-002')
             ->assertSee('Arroz blanco')
             ->assertDontSee('Harina de maíz');
+    }
+
+    public function test_crea_un_producto_con_marca(): void
+    {
+        $categoria = $this->categoria();
+        $marca = Marca::factory()->create(['nombre' => 'Polar']);
+
+        Livewire::test(GestionProductos::class)
+            ->call('crear')
+            ->set('nombre', 'Harina de maíz')
+            ->set('categoria_id', $categoria->id)
+            ->set('marca_id', $marca->id)
+            ->set('unidad_medida', 'kg')
+            ->set('stock_minimo_alerta', 5)
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('productos', [
+            'nombre' => 'Harina de maíz',
+            'marca_id' => $marca->id,
+        ]);
+    }
+
+    public function test_permite_crear_una_marca_desde_el_formulario_de_productos(): void
+    {
+        $componente = Livewire::test(GestionProductos::class)
+            ->call('crear')
+            ->call('crearMarca')
+            ->assertSet('mostrarModalMarca', true)
+            ->set('nuevoMarcaNombre', 'Polar')
+            ->set('nuevoMarcaDescripcion', 'Alimentos y bebidas')
+            ->call('guardarMarca')
+            ->assertHasNoErrors()
+            ->assertSet('mostrarModalMarca', false)
+            ->assertSet('mostrarModal', true)
+            ->assertSee('Marca registrada correctamente.');
+
+        $marca = Marca::query()->where('nombre', 'Polar')->firstOrFail();
+
+        $componente->assertSet('marca_id', $marca->id);
+
+        $this->assertDatabaseHas('marcas', [
+            'nombre' => 'Polar',
+            'descripcion' => 'Alimentos y bebidas',
+            'activo' => true,
+        ]);
+    }
+
+    public function test_no_permite_crear_una_marca_duplicada_desde_el_formulario(): void
+    {
+        Marca::factory()->create(['nombre' => 'Polar']);
+
+        Livewire::test(GestionProductos::class)
+            ->call('crear')
+            ->call('crearMarca')
+            ->set('nuevoMarcaNombre', 'Polar')
+            ->call('guardarMarca')
+            ->assertHasErrors(['nuevoMarcaNombre' => 'unique'])
+            ->assertSet('mostrarModalMarca', true);
+
+        $this->assertDatabaseCount('marcas', 1);
+    }
+
+    public function test_el_formulario_muestra_el_select_de_marcas_y_el_boton_para_crearlas(): void
+    {
+        Marca::factory()->create(['nombre' => 'Polar']);
+
+        Livewire::test(GestionProductos::class)
+            ->call('crear')
+            ->assertSee('Marca')
+            ->assertSee('Sin marca')
+            ->assertSee('Polar')
+            ->assertSee('Si la marca no aparece, créala con el botón +.')
+            ->assertSee('Agregar nueva marca');
+    }
+
+    public function test_muestra_la_marca_en_la_tabla_y_permite_filtrar_por_marca(): void
+    {
+        $categoria = $this->categoria();
+        $polar = Marca::factory()->create(['nombre' => 'Polar']);
+        $savoy = Marca::factory()->create(['nombre' => 'Savoy']);
+
+        $this->producto($categoria, ['sku' => 'HAR-001', 'nombre' => 'Harina de maíz', 'marca_id' => $polar->id]);
+        $this->producto($categoria, ['sku' => 'CHO-001', 'nombre' => 'Chocolate', 'marca_id' => $savoy->id]);
+        $this->producto($categoria, ['sku' => 'ARR-001', 'nombre' => 'Arroz blanco']);
+
+        Livewire::test(GestionProductos::class)
+            ->assertSee('Marca')
+            ->assertSee('Harina de maíz')
+            ->assertSee('Chocolate')
+            ->set('marcaFiltro', $polar->id)
+            ->assertSee('Harina de maíz')
+            ->assertDontSee('Chocolate')
+            ->assertDontSee('Arroz blanco')
+            ->set('marcaFiltro', 'sin-marca')
+            ->assertSee('Arroz blanco')
+            ->assertDontSee('Harina de maíz')
+            ->assertDontSee('Chocolate');
+    }
+
+    public function test_busca_productos_por_nombre_de_marca(): void
+    {
+        $categoria = $this->categoria();
+        $polar = Marca::factory()->create(['nombre' => 'Polar']);
+        $savoy = Marca::factory()->create(['nombre' => 'Savoy']);
+
+        $this->producto($categoria, ['sku' => 'HAR-001', 'nombre' => 'Harina de maíz', 'marca_id' => $polar->id]);
+        $this->producto($categoria, ['sku' => 'CHO-001', 'nombre' => 'Chocolate', 'marca_id' => $savoy->id]);
+
+        Livewire::test(GestionProductos::class)
+            ->set('search', 'Polar')
+            ->assertSee('Harina de maíz')
+            ->assertDontSee('Chocolate');
+    }
+
+    public function test_actualiza_la_marca_de_un_producto_y_permite_dejarlo_sin_marca(): void
+    {
+        $categoria = $this->categoria();
+        $marca = Marca::factory()->create(['nombre' => 'Polar']);
+        $producto = $this->producto($categoria, ['marca_id' => $marca->id]);
+
+        Livewire::test(GestionProductos::class)
+            ->call('editar', $producto->id)
+            ->assertSet('marca_id', $marca->id)
+            ->set('marca_id', '')
+            ->call('actualizar')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('productos', [
+            'id' => $producto->id,
+            'marca_id' => null,
+        ]);
+    }
+
+    public function test_muestra_el_stock_disponible_sumando_los_lotes_del_producto(): void
+    {
+        $categoria = $this->categoria();
+        $producto = $this->producto($categoria, [
+            'sku' => 'PAN-001',
+            'nombre' => 'Harina PAN',
+            'stock_minimo_alerta' => 10,
+        ]);
+        $proveedor = $this->proveedor();
+
+        $this->lote($producto, $proveedor, 30, 'LOTE-001');
+        $this->lote($producto, $proveedor, 18.5, 'LOTE-002');
+
+        Livewire::test(GestionProductos::class)
+            ->assertSee('Stock disponible')
+            ->assertSee('Harina PAN')
+            ->assertSee('48,50')
+            ->assertSee('Kilogramo (kg)');
+    }
+
+    public function test_muestra_cero_de_stock_disponible_cuando_el_producto_no_tiene_lotes(): void
+    {
+        $categoria = $this->categoria();
+        $this->producto($categoria, ['sku' => 'KAL-001', 'nombre' => 'Harina Kali']);
+
+        Livewire::test(GestionProductos::class)
+            ->assertSee('Harina Kali')
+            ->assertSee('0,00');
+    }
+
+    public function test_el_stock_disponible_respeta_la_busqueda_y_el_filtro_por_marca(): void
+    {
+        $categoria = $this->categoria();
+        $polar = Marca::factory()->create(['nombre' => 'Polar']);
+        $kali = Marca::factory()->create(['nombre' => 'Kali']);
+
+        $harinaPan = $this->producto($categoria, [
+            'sku' => 'PAN-001',
+            'nombre' => 'Harina PAN',
+            'marca_id' => $polar->id,
+            'stock_minimo_alerta' => 10,
+        ]);
+        $harinaKali = $this->producto($categoria, [
+            'sku' => 'KAL-001',
+            'nombre' => 'Harina Kali',
+            'marca_id' => $kali->id,
+            'stock_minimo_alerta' => 10,
+        ]);
+
+        $proveedor = $this->proveedor();
+        $this->lote($harinaPan, $proveedor, 30, 'LOTE-001');
+        $this->lote($harinaKali, $proveedor, 12, 'LOTE-002');
+
+        Livewire::test(GestionProductos::class)
+            ->set('search', 'Harina')
+            ->assertSee('Harina PAN')
+            ->assertSee('30,00')
+            ->assertSee('Harina Kali')
+            ->assertSee('12,00')
+            ->set('marcaFiltro', $polar->id)
+            ->assertSee('Harina PAN')
+            ->assertSee('30,00')
+            ->assertDontSee('Harina Kali')
+            ->assertDontSee('12,00');
+    }
+
+    public function test_marca_el_stock_disponible_por_debajo_del_minimo(): void
+    {
+        $categoria = $this->categoria();
+        $producto = $this->producto($categoria, [
+            'sku' => 'PAN-001',
+            'nombre' => 'Harina PAN',
+            'stock_minimo_alerta' => 20,
+        ]);
+
+        $this->lote($producto, $this->proveedor(), 5, 'LOTE-001');
+
+        Livewire::test(GestionProductos::class)
+            ->assertSee('Harina PAN')
+            ->assertSee('5,00')
+            ->assertSee('Bajo mínimo');
     }
 }
